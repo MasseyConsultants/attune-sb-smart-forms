@@ -32,7 +32,9 @@ function stringify(value: unknown): string {
 /**
  * Replaces {{path}} tokens with values from state. Unknown paths become empty
  * strings (a half-rendered email beats a crashed run). Built-ins: {{_date}},
- * {{_time}} render the current date/time.
+ * {{_time}} render the current date/time. Bare tokens ({{name}}) fall back to
+ * formData.name — matching how condition/switch/data_transform resolve bare
+ * field ids, so builder users can reference form fields without the prefix.
  */
 export function interpolate(template: string, state: Record<string, unknown>): string {
   return template.replace(/\{\{\s*([^}|\s]+)\s*\}\}/g, (_match, rawPath: string) => {
@@ -42,6 +44,10 @@ export function interpolate(template: string, state: Record<string, unknown>): s
     if (rawPath === '_time') {
       return new Date().toISOString().slice(11, 19).replace(/:/g, '-');
     }
-    return stringify(resolvePath(state, rawPath));
+    const resolved = resolvePath(state, rawPath);
+    if (resolved === undefined && !rawPath.includes('.')) {
+      return stringify(resolvePath(state, `formData.${rawPath}`));
+    }
+    return stringify(resolved);
   });
 }

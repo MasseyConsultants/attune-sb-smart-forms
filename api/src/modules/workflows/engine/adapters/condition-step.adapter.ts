@@ -1,8 +1,10 @@
 // Author: Robert Massey | Created: 2026-07-13 | Module: Workflows / Engine
-// Purpose: condition node — evaluates one field of run state against an
+// Purpose: condition + switch nodes. Condition evaluates one field against an
 // operator and routes to trueNodeId/falseNodeId (or, when those are unset,
-// the orchestrator matches the boolean result against edge labels).
-// Ported from enterprise condition-step.adapter.ts; switch stays S8.
+// the orchestrator matches the boolean result against edge labels). Switch
+// (S8, Growth tier) matches the field value against its cases and emits
+// activeBranch for edge-label routing — enterprise handles both in one
+// adapter and so do we.
 
 import { Injectable } from '@nestjs/common';
 
@@ -37,14 +39,18 @@ function evaluate(actual: unknown, operator: Operator, expected: unknown): boole
   }
 }
 
+interface SwitchCase {
+  readonly value: string;
+  readonly nextNodeId?: string;
+}
+
 @Injectable()
 export class ConditionStepAdapter implements StepAdapter {
-  readonly handles = ['condition'] as const;
+  readonly handles = ['condition', 'switch'] as const;
 
   execute(ctx: StepContext): Promise<StepResult> {
     const data = ctx.nodeData;
     const field = String(data['field'] ?? data['fieldId'] ?? '');
-    const operator = (data['operator'] as Operator) ?? 'equals';
 
     // Bare field ids resolve inside formData; dotted paths and root keys
     // (built-ins like _formName, upstream outputs like emailSentTo) from root.
@@ -52,6 +58,11 @@ export class ConditionStepAdapter implements StepAdapter {
       ? resolvePath(ctx.state, field)
       : (resolvePath(ctx.state, `formData.${field}`) ?? resolvePath(ctx.state, field));
 
+    if (ctx.nodeType === 'switch') {
+      return Promise.resolve(this.executeSwitch(data, field, actual));
+    }
+
+    const operator = (data['operator'] as Operator) ?? 'equals';
     const result = evaluate(actual, operator, data['value']);
     const explicitTarget = result ? data['trueNodeId'] : data['falseNodeId'];
 
@@ -64,5 +75,37 @@ export class ConditionStepAdapter implements StepAdapter {
         _conditionActualValue: actual ?? null,
       },
     });
+  }
+
+  /**
+   * Matches the field value against cases by case-insensitive string equality.
+   * activeBranch is the matched case value (or 'default'), which the
+   * orchestrator resolves against edge labels; an explicit nextNodeId on the
+   * matched case wins when set.
+   */
+  private executeSwitch(data: Record<string, unknown>, field: string, actual: unknown): StepResult {
+    const cases = Array.isArray(data['cases']) ? (data['cases'] as SwitchCase[]) : [];
+    const actualText = String(actual ?? '')
+      .toLowerCase()
+      .trim();
+    const matched = cases.find(
+      (c) =>
+        String(c.value ?? '')
+          .toLowerCase()
+          .trim() === actualText,
+    );
+
+    return {
+      status: 'completed',
+      nextNodeId:
+        matched && typeof matched.nextNodeId === 'string' && matched.nextNodeId
+          ? matched.nextNodeId
+          : undefined,
+      outputData: {
+        activeBranch: matched ? String(matched.value) : 'default',
+        _switchField: field,
+        _switchActualValue: actual ?? null,
+      },
+    };
   }
 }

@@ -75,6 +75,8 @@ export function useForm(id: string) {
     queryKey: ['forms', id],
     queryFn: () => fetchJson<Form>(`/api/forms/${id}`),
     staleTime: 0,
+    // Callers with an optional form id (workflow builder) pass '' — skip.
+    enabled: id !== '',
   });
 }
 

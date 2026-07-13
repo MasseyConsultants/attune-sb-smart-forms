@@ -9,6 +9,7 @@ import { Injectable } from '@nestjs/common';
 import { Meter } from '@prisma/client';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
+import { WorkflowsRepository } from '../../workflows.repository';
 import type { StepAdapter, StepContext, StepResult } from '../step-adapter.interface';
 import { interpolate } from '../template-interpolation';
 
@@ -42,6 +43,7 @@ export class PdfGenerateStepAdapter implements StepAdapter {
   constructor(
     private readonly storage: BlobStorageService,
     private readonly entitlements: EntitlementsService,
+    private readonly repository: WorkflowsRepository,
     private readonly logger: SecureLoggerService,
   ) {}
 
@@ -68,6 +70,8 @@ export class PdfGenerateStepAdapter implements StepAdapter {
 
     const key = `workflow-artifacts/${ctx.organizationId}/${ctx.runId}/${ctx.nodeId}.pdf`;
     await this.storage.upload(key, pdf, 'application/pdf');
+    // Artifact bytes feed the STORAGE_BYTES live sum (S8 carry-over from S7).
+    await this.repository.addRunArtifactBytes(ctx.runId, pdf.length);
 
     await this.entitlements.consume(ctx.organizationId, Meter.DOC_FILLS, {
       idempotencyKey: `docfill:run:${ctx.runId}:${ctx.nodeId}`,

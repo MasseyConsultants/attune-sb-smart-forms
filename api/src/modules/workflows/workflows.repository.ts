@@ -4,6 +4,7 @@
 
 import { Injectable } from '@nestjs/common';
 import {
+  ApprovalToken,
   Prisma,
   Workflow,
   WorkflowRun,
@@ -204,5 +205,47 @@ export class WorkflowsRepository {
     durationMs?: number;
   }): Promise<WorkflowRunStep> {
     return this.prisma.workflowRunStep.create({ data });
+  }
+
+  /** Tallies blob bytes a run produced — feeds the STORAGE_BYTES live sum. */
+  addRunArtifactBytes(runId: string, bytes: number): Promise<WorkflowRun> {
+    return this.prisma.workflowRun.update({
+      where: { id: runId },
+      data: { artifactBytes: { increment: bytes } },
+    });
+  }
+
+  // --- Approval tokens ---
+
+  createApprovalToken(data: {
+    tokenHash: string;
+    runId: string;
+    nodeId: string;
+    organizationId: string;
+    assignedTo: string;
+    message?: string;
+    expiresAt: Date;
+  }): Promise<ApprovalToken> {
+    return this.prisma.approvalToken.create({ data });
+  }
+
+  findApprovalTokenByHash(
+    tokenHash: string,
+  ): Promise<(ApprovalToken & { run: WorkflowRun & { workflow: Workflow } }) | null> {
+    return this.prisma.approvalToken.findUnique({
+      where: { tokenHash },
+      include: { run: { include: { workflow: true } } },
+    });
+  }
+
+  markApprovalTokenUsed(
+    id: string,
+    decision: 'approved' | 'rejected',
+    note?: string,
+  ): Promise<ApprovalToken> {
+    return this.prisma.approvalToken.update({
+      where: { id },
+      data: { decision, note, usedAt: new Date() },
+    });
   }
 }

@@ -121,12 +121,12 @@ export class EntitlementsRepository {
   }
 
   /**
-   * Live blob usage backing the STORAGE_BYTES meter: template uploads plus
-   * generated document fills. Live sums (not counter writes) so deletes
-   * reclaim space with no reconciliation job.
+   * Live blob usage backing the STORAGE_BYTES meter: template uploads,
+   * generated document fills, and workflow run artifacts. Live sums (not
+   * counter writes) so deletes reclaim space with no reconciliation job.
    */
   async sumStorageBytes(organizationId: string): Promise<number> {
-    const [templates, fills] = await this.prisma.$transaction([
+    const [templates, fills, runArtifacts] = await this.prisma.$transaction([
       this.prisma.documentTemplate.aggregate({
         where: { organizationId, deletedAt: null },
         _sum: { sizeBytes: true },
@@ -135,8 +135,16 @@ export class EntitlementsRepository {
         where: { organizationId, deletedAt: null },
         _sum: { filledDocumentBytes: true },
       }),
+      this.prisma.workflowRun.aggregate({
+        where: { organizationId },
+        _sum: { artifactBytes: true },
+      }),
     ]);
-    return (templates._sum.sizeBytes ?? 0) + (fills._sum.filledDocumentBytes ?? 0);
+    return (
+      (templates._sum.sizeBytes ?? 0) +
+      (fills._sum.filledDocumentBytes ?? 0) +
+      (runArtifacts._sum.artifactBytes ?? 0)
+    );
   }
 
   findOwnerEmail(organizationId: string): Promise<{ email: string } | null> {

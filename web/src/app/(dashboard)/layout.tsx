@@ -38,7 +38,7 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
     label: 'Workflows',
     href: '/workflows',
     icon: <Workflow className="h-4 w-4" />,
-    enabled: false,
+    enabled: true,
   },
   { label: 'Team', href: '/team', icon: <Users className="h-4 w-4" />, enabled: false },
   {

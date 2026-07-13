@@ -5,9 +5,9 @@
 
 ## Current Status
 
-- **Phase:** P4 Workflow Builder — engine half done (S7 closed 2026-07-13);
-  builder UI + Growth adapters next
-- **Current sprint:** Sprint 8 next (`planning/SPRINT_08.md`)
+- **Phase:** P4 Workflow Builder — ✅ complete (S8 closed 2026-07-13);
+  next up P5 Library + Polish
+- **Current sprint:** Sprint 9 next (to be planned)
 - **Version:** 0.1.0
 
 ## Phase Progress
@@ -18,7 +18,7 @@
 | P1 Paywall Core     | S1–S2   | ✅ Complete | 2026-07-13 — entitlements, Stripe, lifecycle FSM, purge sweep, plan UI |
 | P2 Form Builder     | S3–S4   | ✅ Complete | 2026-07-13 — engine, forms API, builder, public fill, submissions      |
 | P3 SmartMapper      | S5–S6   | ✅ Complete | 2026-07-13 — upload, canvas, auto-map, fill runtime, storage metering  |
-| P4 Workflow Builder | S7–S8   | 🔶 S7 done  | 2026-07-13 — engine, adapters, trigger, metering; S8 = builder UI      |
+| P4 Workflow Builder | S7–S8   | ✅ Complete | 2026-07-13 — engine + visual builder, approvals, SSRF'd webhooks, runs |
 | P5 Library + Polish | S9      | Not started | —                                                                      |
 | P6 Launch Hardening | S10–S11 | Not started | —                                                                      |
 
@@ -219,12 +219,39 @@
 - Purge sweep extended: workflows/runs soft+hard delete, `workflow-artifacts/`
   blob prefix removal, tombstone entity counts include workflows
 
+## Sprint 8 Task Status
+
+| #   | Task                     | Status  | Notes                                                                    |
+| --- | ------------------------ | ------- | ------------------------------------------------------------------------ |
+| 1   | Workflows list page      | ✅ Done | Status/trigger/run-count table, create + delete, LIMIT_EXCEEDED CTA      |
+| 2   | React Flow builder       | ✅ Done | @xyflow/react v12 (ADR-0004), tier-gated palette, config panels, publish |
+| 3   | Runs view + step ledger  | ✅ Done | Auto-refresh list, SKIPPED_LIMIT upgrade CTA, expandable per-step ledger |
+| 4   | Approval pause/resume    | ✅ Done | ApprovalToken (hashed, one-shot), public /approvals/[token] page, resume |
+| 5   | webhook/api + SSRF guard | ✅ Done | Private/reserved ranges + metadata hosts + DNS check; 15s/256KB caps     |
+| 6   | switch/transform/export  | ✅ Done | Multi-branch routing, state reshaping, CSV export email (EMAILS metered) |
+| 7   | Storage metering close   | ✅ Done | artifactBytes on runs feeds STORAGE_BYTES live sum (S7 carry-over)       |
+| 8   | Tests                    | ✅ Done | 72 new API specs (SSRF matrix, adapters, approvals), 7 web palette specs |
+
+## Sprint 8 Verification (2026-07-13)
+
+- 368 API tests across 26 suites; 68 web tests across 13 suites; 42
+  form-engine tests — all green; lint + typecheck clean
+- Live E2E smoke (`scripts/smoke-sprint8.ps1`): approval workflow publish
+  → 402 on trial (tier gate) → growth override → published → public
+  submission → run PAUSED at approval → public token decision → run
+  COMPLETED down the Approved branch; token reuse → 410 Gone; webhook to
+  `169.254.169.254` refused by the SSRF guard, run completed via failure edge
+- Browser click-through: workflows list, builder canvas (6 Growth nodes
+  locked with upgrade CTA on the trial org), node config panel with
+  `{{token}}` hints, runs view with expanded step ledger
+- P4 Workflow Builder phase closed — all three flagship systems now live
+
 ## Quality Gates
 
 | Gate              | Target | Current                                                                           |
 | ----------------- | ------ | --------------------------------------------------------------------------------- |
-| API test coverage | 80%    | Improving — 23 suites / 296 tests; paywall + lifecycle + forms + docs + workflows |
-| Web test coverage | 70%    | Growing — 12 suites / 61 tests (+ 42 engine tests in form-engine)                 |
+| API test coverage | 80%    | Improving — 26 suites / 368 tests; paywall + lifecycle + forms + docs + workflows |
+| Web test coverage | 70%    | Growing — 13 suites / 68 tests (+ 42 engine tests in form-engine)                 |
 | CI status         | Green  | Workflow added S0; validating on pushes                                           |
 
 ## Unplanned Items
@@ -234,6 +261,7 @@
 | 2026-07-12 | `HttpExceptionFilter` crashed on Terminus object-shaped `error`     | Fixed + regression spec                     |
 | 2026-07-12 | Nest `deleteOutDir` + stale tsbuildinfo emitted incomplete `dist/`  | `incremental: false` in tsconfig.build.json |
 | 2026-07-12 | `repo-seed/` starter bundle excluded from git (duplicates planning) | Added to .gitignore                         |
+| 2026-07-13 | Sidebar logo SVG had raw `0x14` bytes → XML unparseable, broken img | Bytes replaced with hyphens; logo renders   |
 
 ## Changelog
 

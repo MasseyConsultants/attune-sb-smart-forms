@@ -49,3 +49,71 @@ AI nodes — post-launch; workflow templates in the public library — P5.
 - Webhook step refuses `http://169.254.169.254` and private-range targets
 - Runs list shows COMPLETED/FAILED/SKIPPED_LIMIT with the step ledger
 - All quality gates green
+
+---
+
+## Retrospective (closed 2026-07-13)
+
+**All tasks delivered.** P4 Workflow Builder is complete.
+
+### Delivered
+
+- **Builder UI** — workflows list (status, trigger form, run count, delete),
+  `/workflows/[id]` React Flow canvas (`@xyflow/react` v12, ADR-0004):
+  click-to-add palette grouped Flow/Documents/Messaging/People & systems,
+  Growth nodes locked with an upgrade CTA on core-tier orgs, generic
+  `WorkflowNode` card with per-type config summary, edge labels
+  (Yes/No/Approved/Rejected/failure), per-type config side panel with
+  `{{token}}` field hints from the trigger form schema, publish surfacing
+  graph-validation errors and the 402 tier gate inline. Builder bundle
+  dynamic-imported (`ssr: false`) — stays out of the shared chunk.
+- **Runs view** — `/workflows/[id]/runs`: auto-refreshing run list
+  (COMPLETED/FAILED/PAUSED/SKIPPED_LIMIT with upgrade CTA) + expandable
+  step ledger (status, duration, error, output preview).
+- **Approval flow** — `approval` adapter pauses the run (orchestrator
+  pause/resume, `PAUSED` status, branchHint routing), one-shot
+  `ApprovalToken` (SHA-256 stored, raw token emailed), branded
+  approve/reject links, public `/approvals/[token]` landing page +
+  throttled `@Public()` endpoints; single-use + expiry enforced (410 Gone).
+- **HTTP steps** — `webhook`/`api` adapter with ported SSRF guard
+  (scheme allowlist, blocked hostnames, private/reserved IPv4+IPv6 ranges,
+  DNS resolution check, `redirect: 'error'`), 15s timeout, 256 KB response
+  cap.
+- **Remaining Growth adapters** — `switch` (multi-branch via condition
+  adapter), `data_transform` (dot-path mappings + scalar transforms),
+  `export` (CSV of trigger submission emailed as attachment, EMAILS
+  metered).
+- **Storage metering** — `artifactBytes` on WorkflowRun; pdf_generate +
+  fill_document artifacts now counted in the STORAGE_BYTES live sum
+  (S7 carry-over closed).
+
+### Verification
+
+- 368 API tests / 26 suites; 68 web tests / 13 suites; 42 form-engine
+  tests — all green; lint + typecheck clean.
+- Live E2E smoke (`scripts/smoke-sprint8.ps1`): publish approval workflow
+  blocked 402 on trial → growth override → published → public submission →
+  run PAUSED at approval → public token approved → run COMPLETED down the
+  Approved branch (notify step in ledger); token reuse → 410; webhook to
+  `169.254.169.254` refused by SSRF guard, run completed via failure edge.
+- Browser click-through: workflows list, builder canvas (palette tier
+  gating verified on trial org — 6 Growth nodes locked), node config panel,
+  runs view with expanded step ledger.
+
+### Deviations
+
+- Palette is click-to-add (not drag) — simpler and keyboard-accessible;
+  drag can layer on later without API changes.
+- Approval email links preselect the decision via `?decision=` but never
+  auto-submit — a GET must not mutate (mail scanners prefetch links).
+- Webhook secrets via EncryptionService deferred (SB backlog) — v1 headers
+  are interpolated from run state; no stored-credential path yet.
+
+### Found & fixed along the way
+
+- `web/public/attune-logo-sidebar.svg` contained two raw `0x14` control
+  bytes (mangled em-dashes) making the XML unparseable — sidebar logo
+  rendered as broken alt text on every dashboard page. Replaced with
+  hyphens.
+- Email stub now surfaces `href` links from HTML bodies so approval/invite
+  links are clickable in local dev logs.

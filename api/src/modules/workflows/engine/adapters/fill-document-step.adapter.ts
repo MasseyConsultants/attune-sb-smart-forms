@@ -9,6 +9,7 @@ import type { FieldCoordinateMapping } from '@attune-sb/shared-types';
 import { Injectable } from '@nestjs/common';
 import { Meter } from '@prisma/client';
 
+import { WorkflowsRepository } from '../../workflows.repository';
 import type { StepAdapter, StepContext, StepResult } from '../step-adapter.interface';
 
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
@@ -27,6 +28,7 @@ export class FillDocumentStepAdapter implements StepAdapter {
     private readonly submissions: DocumentFillsRepository,
     private readonly storage: BlobStorageService,
     private readonly entitlements: EntitlementsService,
+    private readonly workflows: WorkflowsRepository,
     private readonly logger: SecureLoggerService,
   ) {}
 
@@ -84,6 +86,8 @@ export class FillDocumentStepAdapter implements StepAdapter {
 
     const key = `workflow-artifacts/${ctx.organizationId}/${ctx.runId}/${ctx.nodeId}.pdf`;
     await this.storage.upload(key, filled, 'application/pdf');
+    // Artifact bytes feed the STORAGE_BYTES live sum (S8 carry-over from S7).
+    await this.workflows.addRunArtifactBytes(ctx.runId, filled.length);
 
     await this.entitlements.consume(ctx.organizationId, Meter.DOC_FILLS, {
       idempotencyKey: `docfill:run:${ctx.runId}:${ctx.nodeId}`,

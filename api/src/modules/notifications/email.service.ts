@@ -149,11 +149,15 @@ export class EmailService {
 
   private logStub(payload: EmailPayload): void {
     const body = payload.text ?? payload.html.replace(/<[^>]+>/g, '');
+    // Stripping tags also strips hrefs — surface them so actionable links
+    // (approval decisions, invites) stay clickable when developing locally.
+    const links = [...payload.html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+    const linksBlock = links.length > 0 ? `\n  Links:\n    ${links.join('\n    ')}` : '';
     this.logger.log(
       `[STUB] Email NOT sent (no RESEND_API_KEY or SMTP_HOST).\n` +
         `  To:      ${payload.to}\n` +
         `  Subject: ${payload.subject}\n` +
-        `  Body:\n${body}`,
+        `  Body:\n${body}${linksBlock}`,
       'EmailService',
     );
   }

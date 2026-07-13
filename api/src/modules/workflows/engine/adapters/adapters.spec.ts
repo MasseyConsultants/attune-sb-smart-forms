@@ -28,6 +28,10 @@ const storage = {
 };
 const templates = { findReadyByFormId: jest.fn() };
 const fillsRepository = { findSubmission: jest.fn() };
+const workflowsRepository = {
+  addRunArtifactBytes: jest.fn().mockResolvedValue({}),
+  createApprovalToken: jest.fn().mockResolvedValue({}),
+};
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 function ctx(
@@ -163,6 +167,7 @@ describe('FillDocumentStepAdapter', () => {
     fillsRepository as any,
     storage as any,
     entitlements as any,
+    workflowsRepository as any,
     logger as any,
   );
 
@@ -280,6 +285,7 @@ describe('PdfGenerateStepAdapter', () => {
     // Reason: structural mocks stand in for Nest providers in unit tests.
     storage as any,
     entitlements as any,
+    workflowsRepository as any,
     logger as any,
   );
 

@@ -2,8 +2,9 @@
 // Purpose: The engine — walks a pinned workflow version node-by-node through
 // the adapter registry, merging outputs into run state and writing a
 // WorkflowRunStep ledger row per node. Ported from the enterprise
-// WorkflowOrchestratorService loop; pause/resume (approvals, delays) lands
-// with those adapters in S8.
+// WorkflowOrchestratorService loop, including S8 pause/resume: an approval
+// adapter returns 'paused', the run parks as PAUSED on currentNodeId, and the
+// public decision endpoint resumes it down the matching branch.
 //
 // Failure semantics: an adapter failure routes to the node's failure edge if
 // one exists, otherwise the run is FAILED with the step's error captured.
@@ -13,13 +14,17 @@
 
 import { WorkflowEdge, WorkflowNode } from '@attune-sb/shared-types';
 import { Injectable } from '@nestjs/common';
-import { Prisma, WorkflowRunStatus, WorkflowRunStepStatus } from '@prisma/client';
+import { Prisma, WorkflowRun, WorkflowRunStatus, WorkflowRunStepStatus } from '@prisma/client';
 
 import { WorkflowsRepository } from '../workflows.repository';
 
+import { ApprovalStepAdapter } from './adapters/approval-step.adapter';
 import { ConditionStepAdapter } from './adapters/condition-step.adapter';
+import { DataTransformStepAdapter } from './adapters/data-transform-step.adapter';
 import { EmailStepAdapter } from './adapters/email-step.adapter';
+import { ExportStepAdapter } from './adapters/export-step.adapter';
 import { FillDocumentStepAdapter } from './adapters/fill-document-step.adapter';
+import { HttpStepAdapter } from './adapters/http-step.adapter';
 import { NotifyStepAdapter } from './adapters/notify-step.adapter';
 import { PdfGenerateStepAdapter } from './adapters/pdf-generate-step.adapter';
 import { SendDocumentStepAdapter } from './adapters/send-document-step.adapter';
@@ -36,6 +41,14 @@ interface PinnedGraph {
   readonly edges: WorkflowEdge[];
 }
 
+export interface ResumeRunOptions {
+  readonly runId: string;
+  /** Merged into run state before continuing (e.g. the approval decision). */
+  readonly resumeData?: Record<string, unknown>;
+  /** Routes the edge out of the paused node ('approved' | 'rejected'). */
+  readonly branchHint?: string;
+}
+
 @Injectable()
 export class WorkflowOrchestratorService {
   private readonly adapters: StepAdapter[];
@@ -49,6 +62,10 @@ export class WorkflowOrchestratorService {
     fillDocumentAdapter: FillDocumentStepAdapter,
     sendDocumentAdapter: SendDocumentStepAdapter,
     notifyAdapter: NotifyStepAdapter,
+    approvalAdapter: ApprovalStepAdapter,
+    httpAdapter: HttpStepAdapter,
+    dataTransformAdapter: DataTransformStepAdapter,
+    exportAdapter: ExportStepAdapter,
   ) {
     this.adapters = [
       conditionAdapter,
@@ -57,10 +74,14 @@ export class WorkflowOrchestratorService {
       fillDocumentAdapter,
       sendDocumentAdapter,
       notifyAdapter,
+      approvalAdapter,
+      httpAdapter,
+      dataTransformAdapter,
+      exportAdapter,
     ];
   }
 
-  /** Executes a PENDING run to completion. Invoked by the BullMQ processor. */
+  /** Executes a PENDING run from its start node. Invoked by the BullMQ processor. */
   async execute(runId: string): Promise<void> {
     const run = await this.repository.findRun(runId);
     if (!run) {
@@ -72,16 +93,10 @@ export class WorkflowOrchestratorService {
       return;
     }
 
-    const version = await this.repository.findVersion(run.workflowId, run.workflowVersion);
-    if (!version) {
-      await this.fail(runId, `Workflow version ${run.workflowVersion} not found`);
+    const graph = await this.loadGraph(run);
+    if (!graph) {
       return;
     }
-    const graph: PinnedGraph = {
-      nodes: (version.nodes ?? []) as unknown as WorkflowNode[],
-      edges: (version.edges ?? []) as unknown as WorkflowEdge[],
-    };
-
     const startNode = graph.nodes.find((n) => n.type === 'start');
     if (!startNode) {
       await this.fail(runId, 'Pinned graph has no start node');
@@ -93,8 +108,69 @@ export class WorkflowOrchestratorService {
       startedAt: new Date(),
     });
 
+    await this.walk(run, graph, startNode.id, (run.state ?? {}) as Record<string, unknown>);
+  }
+
+  /**
+   * Continues a PAUSED run past its paused node (which already executed —
+   * enterprise skipCurrent semantics). The decision routes the outgoing edge.
+   */
+  async resume(options: ResumeRunOptions): Promise<void> {
+    const run = await this.repository.findRun(options.runId);
+    if (!run) {
+      this.logger.warn(`workflow.resume.missing run=${options.runId}`, 'WorkflowOrchestrator');
+      return;
+    }
+    if (run.status !== WorkflowRunStatus.PAUSED || !run.currentNodeId) {
+      // Double-submitted decision or stale link — the run moved on.
+      return;
+    }
+
+    const graph = await this.loadGraph(run);
+    if (!graph) {
+      return;
+    }
+
     let state = (run.state ?? {}) as Record<string, unknown>;
-    let currentNodeId: string | null = startNode.id;
+    if (options.resumeData) {
+      state = { ...state, ...options.resumeData };
+    }
+
+    await this.repository.updateRun(options.runId, {
+      status: WorkflowRunStatus.RUNNING,
+      state: state as Prisma.InputJsonValue,
+    });
+    this.logger.log(
+      `workflow.run.resumed run=${options.runId} node=${run.currentNodeId} branch=${options.branchHint ?? '-'}`,
+      'WorkflowOrchestrator',
+    );
+
+    const next = this.nextNodeId(
+      run.currentNodeId,
+      undefined,
+      graph.edges,
+      'success',
+      options.branchHint ?? null,
+    );
+    if (!next) {
+      // Nothing downstream on that branch — the run is simply done.
+      await this.complete(options.runId, state, 0);
+      return;
+    }
+    await this.walk(run, graph, next, state);
+  }
+
+  // --- The stepping loop ---
+
+  private async walk(
+    run: WorkflowRun,
+    graph: PinnedGraph,
+    startNodeId: string,
+    initialState: Record<string, unknown>,
+  ): Promise<void> {
+    const runId = run.id;
+    let state = initialState;
+    let currentNodeId: string | null = startNodeId;
     let steps = 0;
 
     while (currentNodeId && steps < MAX_STEPS) {
@@ -107,16 +183,7 @@ export class WorkflowOrchestratorService {
 
       if (node.type === 'end') {
         await this.recordStep(runId, node, { status: 'completed' }, 0);
-        await this.repository.updateRun(runId, {
-          status: WorkflowRunStatus.COMPLETED,
-          currentNodeId: null,
-          state: state as Prisma.InputJsonValue,
-          completedAt: new Date(),
-        });
-        this.logger.log(
-          `workflow.run.completed run=${runId} steps=${steps}`,
-          'WorkflowOrchestrator',
-        );
+        await this.complete(runId, state, steps);
         return;
       }
 
@@ -132,8 +199,8 @@ export class WorkflowOrchestratorService {
         (a.handles as readonly string[]).includes(node.type),
       );
       if (!adapter) {
-        // Types the plan gate let through but S7 doesn't ship an adapter for
-        // (approval/webhook/... land in S8) — skip via the default edge.
+        // Types the plan gate let through but no adapter ships for yet
+        // (Business-tier delay/loop etc.) — skip via the default edge.
         await this.recordStep(
           runId,
           node,
@@ -173,6 +240,17 @@ export class WorkflowOrchestratorService {
         await this.repository.updateRun(runId, { state: state as Prisma.InputJsonValue });
       }
 
+      if (result.status === 'paused') {
+        // Park on this node; a decision endpoint resumes past it later.
+        await this.repository.updateRun(runId, {
+          status: WorkflowRunStatus.PAUSED,
+          currentNodeId: node.id,
+          state: state as Prisma.InputJsonValue,
+        });
+        this.logger.log(`workflow.run.paused run=${runId} node=${node.id}`, 'WorkflowOrchestrator');
+        return;
+      }
+
       if (result.status === 'failed') {
         const failureNext = this.nextNodeId(node.id, undefined, graph.edges, 'failure');
         if (failureNext) {
@@ -188,16 +266,12 @@ export class WorkflowOrchestratorService {
       }
 
       // completed + skipped both advance
-      const branchHint =
-        node.type === 'condition' && result.outputData
-          ? String(result.outputData['conditionResult'])
-          : null;
       currentNodeId = this.nextNodeId(
         node.id,
         result.nextNodeId,
         graph.edges,
         'success',
-        branchHint,
+        this.extractBranchHint(node.type, result.outputData),
       );
     }
 
@@ -208,15 +282,49 @@ export class WorkflowOrchestratorService {
 
     // Ran off the graph without hitting an end node — complete rather than
     // fail: everything that executed, executed.
+    await this.complete(runId, state, steps);
+  }
+
+  // --- Internals ---
+
+  private async loadGraph(run: WorkflowRun): Promise<PinnedGraph | null> {
+    const version = await this.repository.findVersion(run.workflowId, run.workflowVersion);
+    if (!version) {
+      await this.fail(run.id, `Workflow version ${run.workflowVersion} not found`);
+      return null;
+    }
+    return {
+      nodes: (version.nodes ?? []) as unknown as WorkflowNode[],
+      edges: (version.edges ?? []) as unknown as WorkflowEdge[],
+    };
+  }
+
+  private async complete(
+    runId: string,
+    state: Record<string, unknown>,
+    steps: number,
+  ): Promise<void> {
     await this.repository.updateRun(runId, {
       status: WorkflowRunStatus.COMPLETED,
       currentNodeId: null,
       state: state as Prisma.InputJsonValue,
       completedAt: new Date(),
     });
+    this.logger.log(`workflow.run.completed run=${runId} steps=${steps}`, 'WorkflowOrchestrator');
   }
 
-  // --- Internals ---
+  private extractBranchHint(nodeType: string, outputData?: Record<string, unknown>): string | null {
+    if (!outputData) {
+      return null;
+    }
+    if (nodeType === 'condition' && outputData['conditionResult'] !== undefined) {
+      return String(outputData['conditionResult']);
+    }
+    if (nodeType === 'switch' && outputData['activeBranch'] !== undefined) {
+      return String(outputData['activeBranch']);
+    }
+    return null;
+  }
 
   private async recordStep(
     runId: string,
@@ -228,7 +336,13 @@ export class WorkflowOrchestratorService {
       completed: WorkflowRunStepStatus.COMPLETED,
       failed: WorkflowRunStepStatus.FAILED,
       skipped: WorkflowRunStepStatus.SKIPPED,
+      // The pause itself isn't an outcome; the decision step is recorded at
+      // resume time by the approvals service with the actual result.
+      paused: WorkflowRunStepStatus.COMPLETED,
     };
+    if (result.status === 'paused') {
+      return;
+    }
     await this.repository.createRunStep({
       runId,
       nodeId: node.id,
@@ -253,7 +367,8 @@ export class WorkflowOrchestratorService {
    * Edge routing, ported from enterprise getNextNodeId:
    * 1. Explicit adapter target wins (condition trueNodeId/falseNodeId)
    * 2. failure route → edge labeled/flagged failure
-   * 3. branch hint → edge whose label matches (true/yes ↔ false/no aliases)
+   * 3. branch hint → edge whose label matches (true/yes, false/no,
+   *    approved/rejected aliases)
    * 4. otherwise the first unlabeled/default edge
    */
   private nextNodeId(
@@ -278,8 +393,13 @@ export class WorkflowOrchestratorService {
 
     if (branchHint !== null && branchHint !== undefined && outgoing.length > 1) {
       const hint = branchHint.toLowerCase().trim();
-      const aliases =
-        hint === 'true' ? ['true', 'yes', 'y'] : hint === 'false' ? ['false', 'no', 'n'] : [hint];
+      const ALIASES: Record<string, string[]> = {
+        true: ['true', 'yes', 'y'],
+        false: ['false', 'no', 'n'],
+        approved: ['approved', 'approve', 'yes', 'true'],
+        rejected: ['rejected', 'reject', 'denied', 'no', 'false'],
+      };
+      const aliases = ALIASES[hint] ?? [hint];
       const match = outgoing.find((e) => aliases.includes(labelOf(e)));
       if (match) {
         return match.target;

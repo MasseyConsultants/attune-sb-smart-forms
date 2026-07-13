@@ -34,7 +34,7 @@ const emailAdapter = {
   }),
 };
 const conditionAdapter = {
-  handles: ['condition'],
+  handles: ['condition', 'switch'],
   execute: jest.fn((ctx: { nodeId: string }) =>
     Promise.resolve(conditionScript[ctx.nodeId] ?? { status: 'completed' }),
   ),
@@ -48,6 +48,17 @@ const pdfAdapter = noopAdapter(['pdf_generate']);
 const fillAdapter = noopAdapter(['fill_document']);
 const sendAdapter = noopAdapter(['send_document']);
 const notifyAdapter = noopAdapter(['notify']);
+// S8 adapters — scriptable where the loop semantics matter (approval pauses)
+let approvalScript: Record<string, StepResult>;
+const approvalAdapter = {
+  handles: ['approval'],
+  execute: jest.fn((ctx: { nodeId: string }) =>
+    Promise.resolve(approvalScript[ctx.nodeId] ?? { status: 'paused' }),
+  ),
+};
+const httpAdapter = noopAdapter(['webhook', 'api']);
+const dataTransformAdapter = noopAdapter(['data_transform']);
+const exportAdapter = noopAdapter(['export']);
 
 function makeOrchestrator(): WorkflowOrchestratorService {
   // Reason: structural mocks stand in for Nest providers in unit tests.
@@ -60,6 +71,10 @@ function makeOrchestrator(): WorkflowOrchestratorService {
     fillAdapter as any,
     sendAdapter as any,
     notifyAdapter as any,
+    approvalAdapter as any,
+    httpAdapter as any,
+    dataTransformAdapter as any,
+    exportAdapter as any,
   );
 }
 
@@ -97,6 +112,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   emailScript = {};
   conditionScript = {};
+  approvalScript = {};
   repository.findRun.mockResolvedValue({ ...RUN });
   repository.updateRun.mockResolvedValue({});
   repository.createRunStep.mockResolvedValue({});
@@ -268,13 +284,133 @@ describe('WorkflowOrchestratorService — idempotency & guards', () => {
 
   it('skips node types with no adapter yet and advances', async () => {
     pinGraph(
-      [node('s', 'start'), node('a', 'approval'), node('e', 'end')],
-      [edge('e1', 's', 'a'), edge('e2', 'a', 'e')],
+      [node('s', 'start'), node('d', 'delay'), node('e', 'end')],
+      [edge('e1', 's', 'd'), edge('e2', 'd', 'e')],
     );
     await makeOrchestrator().execute('run-1');
 
     expect(finalStatus()).toBe(WorkflowRunStatus.COMPLETED);
-    const skipped = repository.createRunStep.mock.calls.find((c) => c[0].nodeId === 'a');
+    const skipped = repository.createRunStep.mock.calls.find((c) => c[0].nodeId === 'd');
     expect(skipped?.[0].status).toBe('SKIPPED');
+  });
+});
+
+describe('WorkflowOrchestratorService — pause & resume (S8 approvals)', () => {
+  const APPROVAL_GRAPH = {
+    nodes: [
+      node('s', 'start'),
+      node('a', 'approval', { to: 'boss@acme.test' }),
+      node('yes', 'email'),
+      node('no', 'notify'),
+      node('e', 'end'),
+    ],
+    edges: [
+      edge('e1', 's', 'a'),
+      edge('e2', 'a', 'yes', 'Approved'),
+      edge('e3', 'a', 'no', 'Rejected'),
+      edge('e4', 'yes', 'e'),
+      edge('e5', 'no', 'e'),
+    ],
+  };
+
+  it('parks the run PAUSED on the approval node and records no ledger row for the pause', async () => {
+    pinGraph(APPROVAL_GRAPH.nodes, APPROVAL_GRAPH.edges);
+    await makeOrchestrator().execute('run-1');
+
+    expect(finalStatus()).toBe(WorkflowRunStatus.PAUSED);
+    const pausedUpdate = runUpdates().find((u) => u.status === WorkflowRunStatus.PAUSED);
+    expect(pausedUpdate?.currentNodeId).toBe('a');
+    // Downstream nodes did not run
+    expect(emailAdapter.execute).not.toHaveBeenCalled();
+    expect(notifyAdapter.execute).not.toHaveBeenCalled();
+    // Ledger: start only — the decision writes the approval row later
+    expect(repository.createRunStep.mock.calls.every((c) => c[0].nodeId !== 'a')).toBe(true);
+  });
+
+  it('resume(approved) continues down the Approved edge without re-running the approval', async () => {
+    repository.findRun.mockResolvedValue({
+      ...RUN,
+      status: WorkflowRunStatus.PAUSED,
+      currentNodeId: 'a',
+    });
+    pinGraph(APPROVAL_GRAPH.nodes, APPROVAL_GRAPH.edges);
+
+    await makeOrchestrator().resume({
+      runId: 'run-1',
+      branchHint: 'approved',
+      resumeData: { approval_a: { decision: 'approved' } },
+    });
+
+    expect(approvalAdapter.execute).not.toHaveBeenCalled();
+    expect(emailAdapter.execute).toHaveBeenCalledTimes(1);
+    expect(notifyAdapter.execute).not.toHaveBeenCalled();
+    expect(finalStatus()).toBe(WorkflowRunStatus.COMPLETED);
+    // The decision landed in downstream state
+    const emailCtx = emailAdapter.execute.mock.calls[0][0] as unknown as {
+      state: Record<string, unknown>;
+    };
+    expect(emailCtx.state['approval_a']).toEqual({ decision: 'approved' });
+  });
+
+  it('resume(rejected) routes down the Rejected edge', async () => {
+    repository.findRun.mockResolvedValue({
+      ...RUN,
+      status: WorkflowRunStatus.PAUSED,
+      currentNodeId: 'a',
+    });
+    pinGraph(APPROVAL_GRAPH.nodes, APPROVAL_GRAPH.edges);
+
+    await makeOrchestrator().resume({ runId: 'run-1', branchHint: 'rejected' });
+
+    expect(notifyAdapter.execute).toHaveBeenCalledTimes(1);
+    expect(emailAdapter.execute).not.toHaveBeenCalled();
+    expect(finalStatus()).toBe(WorkflowRunStatus.COMPLETED);
+  });
+
+  it('resume is a no-op unless the run is PAUSED (double-submitted decision)', async () => {
+    repository.findRun.mockResolvedValue({ ...RUN, status: WorkflowRunStatus.COMPLETED });
+    await makeOrchestrator().resume({ runId: 'run-1', branchHint: 'approved' });
+    expect(repository.updateRun).not.toHaveBeenCalled();
+  });
+
+  it('completes the run when the decided branch has no downstream node', async () => {
+    repository.findRun.mockResolvedValue({
+      ...RUN,
+      status: WorkflowRunStatus.PAUSED,
+      currentNodeId: 'a',
+    });
+    // Only an Approved edge exists; a rejection has nowhere to go.
+    pinGraph(
+      [node('s', 'start'), node('a', 'approval'), node('e', 'end')],
+      [edge('e1', 's', 'a'), edge('e2', 'a', 'e', 'Approved')],
+    );
+
+    await makeOrchestrator().resume({ runId: 'run-1', branchHint: 'rejected' });
+    expect(finalStatus()).toBe(WorkflowRunStatus.COMPLETED);
+  });
+
+  it('routes switch output through the matching case-label edge', async () => {
+    pinGraph(
+      [
+        node('s', 'start'),
+        node('sw', 'switch'),
+        node('a1', 'email'),
+        node('a2', 'notify'),
+        node('e', 'end'),
+      ],
+      [
+        edge('e1', 's', 'sw'),
+        edge('e2', 'sw', 'a1', 'urgent'),
+        edge('e3', 'sw', 'a2', 'default'),
+        edge('e4', 'a1', 'e'),
+        edge('e5', 'a2', 'e'),
+      ],
+    );
+    conditionScript['sw'] = { status: 'completed', outputData: { activeBranch: 'urgent' } };
+
+    await makeOrchestrator().execute('run-1');
+
+    expect(emailAdapter.execute).toHaveBeenCalledTimes(1);
+    expect(notifyAdapter.execute).not.toHaveBeenCalled();
   });
 });

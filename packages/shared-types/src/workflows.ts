@@ -101,6 +101,8 @@ export interface WorkflowPublishedData {
 export type WorkflowRunStatus =
   | 'PENDING'
   | 'RUNNING'
+  // Waiting on a human decision (approval node).
+  | 'PAUSED'
   | 'COMPLETED'
   | 'FAILED'
   // Recorded (never silently dropped) when WORKFLOW_RUNS is at cap.
@@ -154,4 +156,24 @@ export interface WorkflowSummary {
 export interface WorkflowDetail extends WorkflowSummary {
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
+}
+
+// --- Public approvals (S8) ---
+
+export type ApprovalDecision = 'approved' | 'rejected';
+
+/** What the public approval landing page may see — no run state, no PII. */
+export interface ApprovalPublicView {
+  workflowName: string;
+  message: string | null;
+  assignedTo: string;
+  expiresAt: string;
+  /** Set once a decision has been recorded (page shows the outcome). */
+  decision: ApprovalDecision | null;
+  decidedAt: string | null;
+}
+
+export interface DecideApprovalRequest {
+  decision: ApprovalDecision;
+  note?: string;
 }

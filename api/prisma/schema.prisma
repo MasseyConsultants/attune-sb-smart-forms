@@ -86,6 +86,8 @@ enum WorkflowStatus {
 enum WorkflowRunStatus {
   PENDING
   RUNNING
+  // Waiting on a human (approval node). currentNodeId marks where.
+  PAUSED
   COMPLETED
   FAILED
   // Recorded when WORKFLOW_RUNS is at cap — visible in the runs list, never
@@ -521,18 +523,49 @@ model WorkflowRun {
   organizationId String       @map("organization_id")
   organization   Organization @relation(fields: [organizationId], references: [id])
 
+  // Blob bytes written by this run (pdf_generate / fill_document outputs).
+  // Aggregated into the STORAGE_BYTES live sum; run deletion reclaims space.
+  artifactBytes Int @default(0) @map("artifact_bytes")
+
   startedAt   DateTime? @map("started_at")
   completedAt DateTime? @map("completed_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  steps WorkflowRunStep[]
+  steps          WorkflowRunStep[]
+  approvalTokens ApprovalToken[]
 
   @@index([workflowId, status])
   @@index([organizationId, status])
   @@index([submissionId])
   @@map("workflow_runs")
+}
+
+// Public no-login approval links (Growth tier). The raw token is emailed and
+// never stored — only its SHA-256. One decision per token; expiry enforced.
+model ApprovalToken {
+  id        String      @id @default(uuid())
+  tokenHash String      @unique @map("token_hash")
+  runId     String      @map("run_id")
+  run       WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  nodeId    String      @map("node_id")
+
+  organizationId String @map("organization_id")
+  // Approver email the link was sent to (display only — the token IS the auth)
+  assignedTo String  @map("assigned_to")
+  message    String?
+
+  decision  String? // 'approved' | 'rejected'
+  note      String?
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([runId])
+  @@index([organizationId])
+  @@map("approval_tokens")
 }
 
 // Per-node execution ledger: status, output, error, timing. Input is the run

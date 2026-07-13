@@ -7,7 +7,7 @@
 
 import type { WorkflowNodeType } from '@attune-sb/shared-types';
 
-export type StepStatus = 'completed' | 'failed' | 'skipped';
+export type StepStatus = 'completed' | 'failed' | 'skipped' | 'paused';
 
 export interface StepResult {
   readonly status: StepStatus;
