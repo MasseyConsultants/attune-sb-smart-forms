@@ -72,7 +72,8 @@ export interface ConditionalVisibility {
 export interface ConditionalRule {
   fieldId: string;
   operator: ConditionalOperator;
-  value: unknown;
+  /** Omitted for value-less operators (is_empty / is_not_empty). */
+  value?: unknown;
 }
 
 export type ConditionalOperator =
