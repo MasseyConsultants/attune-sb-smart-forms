@@ -11,7 +11,9 @@ import type { ListFormsQueryDto } from './dto/list-forms-query.dto';
 import { PrismaService } from '@/modules/common/prisma/prisma.service';
 
 // List items omit the schema JSON blob — the editor fetches the full form by id.
-export type FormListItem = Omit<Form, 'schema' | 'deletedAt'>;
+export type FormListItem = Omit<Form, 'schema' | 'deletedAt'> & {
+  readonly _count?: { readonly submissions: number };
+};
 
 export interface PaginatedForms {
   readonly forms: FormListItem[];
@@ -49,6 +51,11 @@ export class FormsRepository {
           createdById: true,
           createdAt: true,
           updatedAt: true,
+          _count: {
+            select: {
+              submissions: { where: { deletedAt: null, status: { not: 'OVER_LIMIT' } } },
+            },
+          },
         },
       }),
       this.prisma.form.count({ where }),

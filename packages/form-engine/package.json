@@ -11,6 +11,18 @@
       "types": "./dist/index.d.ts",
       "require": "./dist/index.js",
       "import": "./dist/index.js"
+    },
+    "./logic": {
+      "types": "./dist/logic/index.d.ts",
+      "require": "./dist/logic/index.js",
+      "import": "./dist/logic/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "logic": [
+        "./dist/logic/index.d.ts"
+      ]
     }
   },
   "files": [

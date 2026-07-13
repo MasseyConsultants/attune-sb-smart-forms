@@ -38,6 +38,8 @@ export interface FormDto {
   readonly status: FormStatus;
   readonly version: number;
   readonly organizationId: string;
+  /** Present on list items (non-quarantined submissions only). */
+  readonly submissionCount?: number;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -74,6 +76,7 @@ function toFormDto(form: Form | FormListItem): FormDto {
     status: form.status,
     version: form.version,
     organizationId: form.organizationId,
+    ...('_count' in form && form._count ? { submissionCount: form._count.submissions } : {}),
     createdAt: form.createdAt,
     updatedAt: form.updatedAt,
   };

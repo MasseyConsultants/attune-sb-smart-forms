@@ -19,6 +19,7 @@
     "seed": "ts-node --transpile-only --project tsconfig.seed.json prisma/seed.ts"
   },
   "dependencies": {
+    "@attune-sb/form-engine": "workspace:*",
     "@attune-sb/shared-types": "workspace:*",
     "@nestjs/bullmq": "^10.2.0",
     "@nestjs/common": "^10.3.0",

@@ -33,6 +33,7 @@ import { LifecycleModule } from './modules/lifecycle/lifecycle.module';
 import { ReadOnlyGuard } from './modules/lifecycle/read-only.guard';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { SubmissionsModule } from './modules/submissions/submissions.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
@@ -96,6 +97,7 @@ import { UsersModule } from './modules/users/users.module';
     LifecycleModule,
     BillingModule,
     FormsModule,
+    SubmissionsModule,
   ],
   providers: [
     // NestJS applies APP_FILTERs in reverse declaration order — the catch-all

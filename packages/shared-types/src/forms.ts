@@ -136,6 +136,8 @@ export interface Form {
   status: FormStatus;
   version: number;
   organizationId: string;
+  /** Present on list responses (non-quarantined rows only). */
+  submissionCount?: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -60,6 +60,16 @@ enum FormStatus {
   ARCHIVED
 }
 
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  // Accepted over the plan cap: stored + quarantined, never dropped.
+  OVER_LIMIT
+}
+
 // --- Tenancy ---
 
 model Organization {
@@ -87,6 +97,7 @@ model Organization {
   entitlementOverrides EntitlementOverride[]
   inviteTokens         InviteToken[]
   forms                Form[]
+  submissions          Submission[]
 
   @@index([lifecycleState])
   @@index([deletedAt])
@@ -304,12 +315,40 @@ model Form {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  versions FormVersion[]
+  versions    FormVersion[]
+  submissions Submission[]
 
   @@index([organizationId])
   @@index([organizationId, status])
   @@index([deletedAt])
   @@map("forms")
+}
+
+// Public intake rows. OVER_LIMIT rows are quarantined (hidden from data views
+// and exports) until the plan has headroom again — data is never dropped.
+model Submission {
+  id          String           @id @default(uuid())
+  formId      String           @map("form_id")
+  form        Form             @relation(fields: [formId], references: [id])
+  formVersion Int              @map("form_version")
+  data        Json
+  status      SubmissionStatus @default(SUBMITTED)
+  submittedAt DateTime?        @map("submitted_at")
+
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  // Abuse forensics for public intake (no auth to attribute)
+  sourceIp String? @map("source_ip")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([formId, status])
+  @@index([organizationId, status])
+  @@index([deletedAt])
+  @@map("submissions")
 }
 
 // Immutable snapshot created on every publish/republish. The public fill page
