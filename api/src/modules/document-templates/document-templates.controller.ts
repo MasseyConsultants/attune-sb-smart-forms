@@ -5,6 +5,7 @@
 // the org's actual plan limit.
 
 import {
+  AutoMapResult,
   PLAN_ENTITLEMENTS,
   DocumentTemplateDetail,
   DocumentTemplateSummary,
@@ -29,6 +30,7 @@ import { ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import type { Response } from 'express';
 
+import { AutoMapperService } from './auto-mapper/auto-mapper.service';
 import {
   DocumentTemplatesService,
   UploadedFile as TemplateFile,
@@ -48,7 +50,10 @@ const MULTER_MAX_BYTES = PLAN_ENTITLEMENTS.business.limits.maxUploadBytes;
 @ApiTags('Document Templates')
 @Controller('document-templates')
 export class DocumentTemplatesController {
-  constructor(private readonly service: DocumentTemplatesService) {}
+  constructor(
+    private readonly service: DocumentTemplatesService,
+    private readonly autoMapper: AutoMapperService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "List the org's document templates" })
@@ -105,6 +110,17 @@ export class DocumentTemplatesController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<DocumentTemplateDetail> {
     return this.service.update(id, dto, user);
+  }
+
+  @Post(':id/suggest-mappings')
+  @Roles(Role.BUILDER)
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Stage 1 auto-mapping suggestions (fuzzy match, no AI)' })
+  suggestMappings(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<AutoMapResult> {
+    return this.autoMapper.suggestMappings(id, user);
   }
 
   @Put(':id/mappings')

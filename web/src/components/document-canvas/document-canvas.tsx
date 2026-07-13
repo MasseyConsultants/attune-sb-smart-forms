@@ -9,20 +9,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type {
+  CandidateMapping,
   DocumentTemplateDetail,
   FieldCoordinateMapping,
   FieldDefinition,
   Form,
   FormSchema,
 } from '@attune-sb/shared-types';
-import { Check, Grid3x3, Loader2, Magnet, Ruler, Save, ZoomIn, ZoomOut } from 'lucide-react';
+import { Check, Grid3x3, Loader2, Magnet, Ruler, Save, Wand2, ZoomIn, ZoomOut } from 'lucide-react';
 import Link from 'next/link';
 
+import { DocumentCandidatesPanel } from './document-candidates-panel';
 import { DocumentFieldSidebar } from './document-field-sidebar';
 import { DocumentPageViewer } from './document-page-viewer';
 
 import { useForm } from '@/hooks/use-forms';
-import { useSaveMappings } from '@/hooks/use-templates';
+import { useSaveMappings, useSuggestMappings } from '@/hooks/use-templates';
 import { cn } from '@/lib/utils';
 
 // Layout-only field types never receive submission values.
@@ -30,6 +32,11 @@ const UNMAPPABLE_TYPES = new Set(['section', 'pagebreak', 'thankyou']);
 
 const ZOOM_LEVELS = [0.75, 1, 1.25, 1.5, 2, 3];
 const DEFAULT_ZOOM = 1.5;
+
+/** Same identity a candidate's accepted mapping would have. */
+function candidateMappingKey(c: { fieldId: string; answerOption?: string }): string {
+  return `${c.fieldId}::${c.answerOption ?? ''}`;
+}
 
 function ToggleButton({
   icon,
@@ -73,7 +80,13 @@ export function DocumentCanvas({
   const [showGuides, setShowGuides] = useState(true);
   const [savedFlash, setSavedFlash] = useState(false);
 
+  // Auto-map review state: null = no run pending; [] never persists (panel closes).
+  const [candidates, setCandidates] = useState<CandidateMapping[] | null>(null);
+  const [autoMapNotice, setAutoMapNotice] = useState<string | null>(null);
+  const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
+
   const saveMappings = useSaveMappings(template.id);
+  const suggestMappings = useSuggestMappings(template.id);
   const linkedForm = useForm(template.formId ?? '');
 
   const fields = useMemo((): FieldDefinition[] => {
@@ -98,6 +111,75 @@ export function DocumentCanvas({
       },
     });
   }, [mappings, saveMappings]);
+
+  // --- Auto-map (Stage 1 fuzzy suggestions) ---
+
+  const handleAutoMap = useCallback(() => {
+    setAutoMapNotice(null);
+    suggestMappings.mutate(undefined, {
+      onSuccess: (result) => {
+        if (result.scannedPdf) {
+          setAutoMapNotice(
+            'This looks like a scanned document — there is no embedded text to match, so map fields manually.',
+          );
+          return;
+        }
+        // Positions that already have a mapping are settled — don't re-suggest.
+        const mappedKeys = new Set(mappings.map(candidateMappingKey));
+        const fresh = result.candidates.filter((c) => !mappedKeys.has(candidateMappingKey(c)));
+        if (fresh.length === 0) {
+          setAutoMapNotice('No new suggestions — every matched field is already mapped.');
+          return;
+        }
+        setCandidates(fresh);
+      },
+      onError: (err) => {
+        setAutoMapNotice(err instanceof Error ? err.message : 'Auto-map failed');
+      },
+    });
+  }, [mappings, suggestMappings]);
+
+  const acceptCandidate = useCallback((candidate: CandidateMapping) => {
+    const mapping: FieldCoordinateMapping = {
+      fieldId: candidate.fieldId,
+      fieldLabel: candidate.fieldLabel,
+      page: candidate.page,
+      x: Math.round(candidate.x),
+      y: Math.round(candidate.y),
+      width: Math.round(candidate.width),
+      height: Math.round(candidate.height),
+      fontSize: candidate.answerOption ? 10 : 11,
+      answerOption: candidate.answerOption,
+    };
+    const key = candidateMappingKey(mapping);
+    setMappings((prev) => [...prev.filter((m) => candidateMappingKey(m) !== key), mapping]);
+    setDirty(true);
+    setCandidates((prev) => {
+      const next = (prev ?? []).filter((c) => candidateMappingKey(c) !== key);
+      return next.length > 0 ? next : null;
+    });
+  }, []);
+
+  const rejectCandidate = useCallback((candidate: CandidateMapping) => {
+    const key = candidateMappingKey(candidate);
+    setCandidates((prev) => {
+      const next = (prev ?? []).filter((c) => candidateMappingKey(c) !== key);
+      return next.length > 0 ? next : null;
+    });
+  }, []);
+
+  const acceptAllCandidates = useCallback(() => {
+    for (const candidate of candidates ?? []) {
+      acceptCandidate(candidate);
+    }
+  }, [candidates, acceptCandidate]);
+
+  const moveCandidate = useCallback((updated: CandidateMapping) => {
+    const key = candidateMappingKey(updated);
+    setCandidates(
+      (prev) => prev?.map((c) => (candidateMappingKey(c) === key ? updated : c)) ?? null,
+    );
+  }, []);
 
   // Warn before navigating away with unsaved mapping changes.
   useEffect(() => {
@@ -188,6 +270,21 @@ export function DocumentCanvas({
           onClick={() => setShowGuides((v) => !v)}
         />
 
+        <button
+          type="button"
+          onClick={handleAutoMap}
+          disabled={suggestMappings.isPending || fields.length === 0}
+          title="Suggest field positions from the document's text (no AI, instant)"
+          className="flex h-8 items-center gap-1.5 rounded-md border border-sky-300 bg-sky-50 px-2.5 text-xs font-medium text-sky-700 transition-colors hover:bg-sky-100 disabled:opacity-50 dark:border-sky-800 dark:bg-sky-900/20 dark:text-sky-300"
+        >
+          {suggestMappings.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Wand2 className="h-3.5 w-3.5" />
+          )}
+          Auto-map
+        </button>
+
         <div className="ml-auto flex items-center gap-2">
           {saveMappings.isError && (
             <span className="text-xs text-red-500">
@@ -218,6 +315,19 @@ export function DocumentCanvas({
         </div>
       </div>
 
+      {autoMapNotice && (
+        <div className="flex items-center justify-between gap-3 border-b bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+          <span>{autoMapNotice}</span>
+          <button
+            type="button"
+            onClick={() => setAutoMapNotice(null)}
+            className="shrink-0 font-medium hover:underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Body: sidebar + canvas */}
       <div className="flex min-h-0 flex-1">
         <aside className="w-64 shrink-0 border-r bg-background">
@@ -225,6 +335,15 @@ export function DocumentCanvas({
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
+          ) : candidates ? (
+            <DocumentCandidatesPanel
+              candidates={candidates}
+              onAccept={acceptCandidate}
+              onReject={rejectCandidate}
+              onAcceptAll={acceptAllCandidates}
+              onRejectAll={() => setCandidates(null)}
+              onHoverField={setHoveredFieldId}
+            />
           ) : (
             <DocumentFieldSidebar fields={fields} mappings={mappings} />
           )}
@@ -241,6 +360,11 @@ export function DocumentCanvas({
             showGrid={showGrid}
             snapToGrid={snapToGrid}
             showGuides={showGuides}
+            candidates={candidates ?? []}
+            onCandidateAccept={acceptCandidate}
+            onCandidateReject={rejectCandidate}
+            onCandidateMove={moveCandidate}
+            highlightedFieldId={hoveredFieldId}
           />
         </main>
       </div>

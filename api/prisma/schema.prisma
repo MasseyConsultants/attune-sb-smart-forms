@@ -388,6 +388,13 @@ model Submission {
   // Abuse forensics for public intake (no auth to attribute)
   sourceIp String? @map("source_ip")
 
+  // SmartMapper document fill (S6): blob key + size of the generated PDF.
+  // Null = no template mapped, fill failed, or DOC_FILLS cap reached — the
+  // submission itself is always kept.
+  filledDocumentKey   String?   @map("filled_document_key")
+  filledDocumentBytes Int?      @map("filled_document_bytes")
+  filledAt            DateTime? @map("filled_at")
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")

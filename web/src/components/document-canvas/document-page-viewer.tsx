@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type {
+  CandidateMapping,
   DocumentTemplateDetail,
   FieldCoordinateMapping,
   FieldDefinition,
@@ -31,6 +32,7 @@ import {
 } from 'lucide-react';
 
 import type { GuideLine } from './alignment-guides';
+import { CandidateTag } from './candidate-tag';
 import { effectiveRenderMode, mappingKey, snapToStep } from './canvas-utils';
 import { DocumentFieldTag } from './document-field-tag';
 
@@ -50,6 +52,18 @@ interface DocumentPageViewerProps {
   /** Grid spacing in PDF points. */
   gridSize?: number;
   showGuides?: boolean;
+  /** Auto-map suggestions pending review — rendered as dashed overlay tags. */
+  candidates?: CandidateMapping[];
+  onCandidateAccept?: (candidate: CandidateMapping) => void;
+  onCandidateReject?: (candidate: CandidateMapping) => void;
+  onCandidateMove?: (updated: CandidateMapping) => void;
+  /** Field id hovered in the candidates panel — its boxes glow. */
+  highlightedFieldId?: string | null;
+}
+
+/** Stable identity for a candidate: one box per field + answer option. */
+function candidateKey(c: CandidateMapping): string {
+  return `${c.fieldId}::${c.answerOption ?? ''}`;
 }
 
 const HIGHLIGHT_COLORS = [
@@ -101,6 +115,11 @@ export function DocumentPageViewer({
   snapToGrid = false,
   gridSize = 10,
   showGuides = true,
+  candidates = [],
+  onCandidateAccept,
+  onCandidateReject,
+  onCandidateMove,
+  highlightedFieldId = null,
 }: DocumentPageViewerProps): React.ReactElement {
   const [renderedPages, setRenderedPages] = useState(0);
   const containerRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -730,6 +749,23 @@ export function DocumentPageViewer({
                   }
                 />
               ))}
+
+              {candidates
+                .filter((c) => c.page === pageIndex)
+                .map((candidate) => (
+                  <CandidateTag
+                    key={candidateKey(candidate)}
+                    candidate={candidate}
+                    pageDimension={pageDim}
+                    containerScale={scale}
+                    onAccept={onCandidateAccept ?? (() => undefined)}
+                    onReject={onCandidateReject ?? (() => undefined)}
+                    onMove={onCandidateMove ?? (() => undefined)}
+                    highlighted={highlightedFieldId === candidate.fieldId}
+                    snapToGrid={snapToGrid}
+                    gridSize={gridSize}
+                  />
+                ))}
 
               {marquee && marquee.pageIndex === pageIndex && (
                 <div

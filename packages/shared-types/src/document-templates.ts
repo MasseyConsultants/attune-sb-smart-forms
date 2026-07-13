@@ -78,3 +78,39 @@ export interface DocumentTemplateDetail extends DocumentTemplateSummary {
 export const TEMPLATE_MIME_PDF = 'application/pdf';
 export const TEMPLATE_MIME_DOCX =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+// --- Auto-mapping (Stage 1 fuzzy match) ---
+
+export type CandidateStatus = 'auto_accept' | 'review';
+
+/** One suggested mapping produced by the Stage 1 auto-mapper. */
+export interface CandidateMapping {
+  fieldId: string;
+  fieldLabel: string;
+  /** Raw PDF text the field label was fuzzy-matched to. */
+  pdfLabelText: string;
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  answerOption?: string;
+  /** Fuzzy match confidence 0-100. */
+  confidence: number;
+  status: CandidateStatus;
+  /** Set when geometric group validation flagged this candidate. */
+  validationNote?: string;
+}
+
+export interface AutoMapResult {
+  candidates: CandidateMapping[];
+  /** True when the PDF looks scanned (too little embedded text to match). */
+  scannedPdf: boolean;
+  stats: {
+    totalFields: number;
+    autoAccepted: number;
+    needsReview: number;
+    dropped: number;
+  };
+  ranAt: string;
+}

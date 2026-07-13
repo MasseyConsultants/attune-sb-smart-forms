@@ -8,6 +8,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
+  AutoMapResult,
   DocumentTemplateDetail,
   DocumentTemplateSummary,
   FieldCoordinateMapping,
@@ -110,6 +111,13 @@ export function useSaveMappings(id: string) {
       queryClient.setQueryData(['templates', id], data);
       void queryClient.invalidateQueries({ queryKey: ['templates', 'list'] });
     },
+  });
+}
+
+export function useSuggestMappings(id: string) {
+  return useMutation({
+    mutationFn: () =>
+      fetchJson<AutoMapResult>(`/api/templates/${id}/suggest-mappings`, { method: 'POST' }),
   });
 }
 

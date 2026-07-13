@@ -19,7 +19,7 @@ import {
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
-import { DocumentTemplateStatus, Prisma } from '@prisma/client';
+import { DocumentTemplateStatus, Meter, Prisma } from '@prisma/client';
 
 import { DocumentTemplatesRepository, TemplateWithForm } from './document-templates.repository';
 import { convertDocxToPdf } from './docx-converter';
@@ -101,6 +101,7 @@ export class DocumentTemplatesService {
         `File is ${Math.ceil(file.size / 1024 / 1024)} MB — your plan allows up to ${Math.floor(maxBytes / 1024 / 1024)} MB per upload`,
       );
     }
+    await this.entitlements.assertMeterAvailable(orgId, Meter.STORAGE_BYTES, file.size);
 
     if (dto.formId) {
       await this.assertLinkableForm(dto.formId, orgId);

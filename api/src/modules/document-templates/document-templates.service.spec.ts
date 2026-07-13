@@ -111,6 +111,7 @@ describe('DocumentTemplatesService', () => {
 
   const entitlements = {
     assertCountedAvailable: jest.fn().mockResolvedValue(undefined),
+    assertMeterAvailable: jest.fn().mockResolvedValue(undefined),
     getPlanSnapshot: jest.fn().mockResolvedValue(trialSnapshot),
   };
 

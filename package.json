@@ -46,5 +46,10 @@
     "*.{json,md,css,yaml,yml}": [
       "prettier --write"
     ]
+  },
+  "pnpm": {
+    "overrides": {
+      "canvas": "-"
+    }
   }
 }

@@ -88,6 +88,18 @@ export class DocumentTemplatesRepository {
     });
   }
 
+  /** The READY template backing a form's document fills, if any. */
+  findReadyByFormId(formId: string, organizationId: string): Promise<DocumentTemplate | null> {
+    return this.prisma.documentTemplate.findFirst({
+      where: {
+        formId,
+        organizationId,
+        status: DocumentTemplateStatus.READY,
+        deletedAt: null,
+      },
+    });
+  }
+
   /** A form can back at most one template at v1. */
   async formAlreadyLinked(formId: string, excludeTemplateId?: string): Promise<boolean> {
     const found = await this.prisma.documentTemplate.findFirst({
