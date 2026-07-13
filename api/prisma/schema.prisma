@@ -54,6 +54,12 @@ enum PurgePhase {
   LEGAL_HOLD_SKIP
 }
 
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 // --- Tenancy ---
 
 model Organization {
@@ -80,6 +86,7 @@ model Organization {
   usageEvents          UsageEvent[]
   entitlementOverrides EntitlementOverride[]
   inviteTokens         InviteToken[]
+  forms                Form[]
 
   @@index([lifecycleState])
   @@index([deletedAt])
@@ -276,6 +283,52 @@ model EntitlementOverride {
 }
 
 // Stripe webhook event dedupe — handlers are idempotent by event ID.
+// --- Forms (Sprint 3) ---
+
+model Form {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  // Public fill-page identifier for /f/[slug] (S4) — unique, regenerable.
+  slug        String     @unique
+  // form-engine FormSchema contract: { fields, settings, navigationRules }
+  schema      Json       @default("{\"fields\":[]}")
+  status      FormStatus @default(DRAFT)
+  version     Int        @default(1)
+
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdById    String       @map("created_by_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  versions FormVersion[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([deletedAt])
+  @@map("forms")
+}
+
+// Immutable snapshot created on every publish/republish. The public fill page
+// and submissions always reference a version, never the mutable draft schema.
+model FormVersion {
+  id          String   @id @default(uuid())
+  formId      String   @map("form_id")
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  version     Int
+  schema      Json
+  changelog   String?
+  publishedBy String?  @map("published_by")
+  publishedAt DateTime @default(now()) @map("published_at")
+
+  @@unique([formId, version])
+  @@index([formId])
+  @@map("form_versions")
+}
+
 model StripeWebhookEvent {
   id          String   @id // Stripe event id (evt_...)
   type        String

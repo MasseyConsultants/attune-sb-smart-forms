@@ -106,6 +106,13 @@ export class EntitlementsRepository {
     });
   }
 
+  /** Live count backing the activeForms counted resource — only PUBLISHED forms count. */
+  countPublishedForms(organizationId: string): Promise<number> {
+    return this.prisma.form.count({
+      where: { organizationId, status: 'PUBLISHED', deletedAt: null },
+    });
+  }
+
   findOwnerEmail(organizationId: string): Promise<{ email: string } | null> {
     return this.prisma.user.findFirst({
       where: { organizationId, role: 'OWNER', isActive: true, deletedAt: null },

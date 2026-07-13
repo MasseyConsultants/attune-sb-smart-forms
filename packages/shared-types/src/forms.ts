@@ -32,37 +32,41 @@ export interface FieldDefinition {
   page: number;
 }
 
-export type FieldType =
-  | 'text'
-  | 'multiline'
-  | 'textarea'
-  | 'number'
-  | 'email'
-  | 'phone'
-  | 'url'
-  | 'dynamiclist'
-  | 'dropdown'
-  | 'multiselect'
-  | 'select'
-  | 'radio'
-  | 'checkbox'
-  | 'yesno'
-  | 'toggle'
-  | 'date'
-  | 'time'
-  | 'datetime'
-  | 'eventtimestamp'
-  | 'photo'
-  | 'signature'
-  | 'barcode'
-  | 'gps'
-  | 'address'
-  | 'calculated'
-  | 'currentuser'
-  | 'rating'
-  | 'section'
-  | 'pagebreak'
-  | 'thankyou';
+// Runtime list so the API can validate schemas without duplicating the union.
+export const FIELD_TYPES = [
+  'text',
+  'multiline',
+  'textarea',
+  'number',
+  'email',
+  'phone',
+  'url',
+  'dynamiclist',
+  'dropdown',
+  'multiselect',
+  'select',
+  'radio',
+  'checkbox',
+  'yesno',
+  'toggle',
+  'date',
+  'time',
+  'datetime',
+  'eventtimestamp',
+  'photo',
+  'signature',
+  'barcode',
+  'gps',
+  'address',
+  'calculated',
+  'currentuser',
+  'rating',
+  'section',
+  'pagebreak',
+  'thankyou',
+] as const;
+
+export type FieldType = (typeof FIELD_TYPES)[number];
 
 export interface ConditionalVisibility {
   enabled: boolean;

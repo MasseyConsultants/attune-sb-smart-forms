@@ -26,6 +26,7 @@ import { HttpLoggerMiddleware } from './modules/common/middleware/http-logger.mi
 import { PrismaModule } from './modules/common/prisma/prisma.module';
 import { EntitlementsGuard } from './modules/entitlements/entitlements.guard';
 import { EntitlementsModule } from './modules/entitlements/entitlements.module';
+import { FormsModule } from './modules/forms/forms.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { LifecycleModule } from './modules/lifecycle/lifecycle.module';
@@ -94,6 +95,7 @@ import { UsersModule } from './modules/users/users.module';
     EntitlementsModule,
     LifecycleModule,
     BillingModule,
+    FormsModule,
   ],
   providers: [
     // NestJS applies APP_FILTERs in reverse declaration order — the catch-all

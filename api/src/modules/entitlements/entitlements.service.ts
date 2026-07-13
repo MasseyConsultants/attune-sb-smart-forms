@@ -254,10 +254,13 @@ export class EntitlementsService {
           used: await this.repository.countActiveUsers(organizationId),
           limit: snapshot.definition.limits.maxUsers,
         };
-      // Forms land in S3, SmartMapper templates in S5 — until those tables
-      // exist the counts are structurally zero.
       case 'activeForms':
-        return { used: 0, limit: snapshot.definition.limits.activeForms };
+        return {
+          used: await this.repository.countPublishedForms(organizationId),
+          limit: snapshot.definition.limits.activeForms,
+        };
+      // SmartMapper templates land in S5 — until that table exists the count
+      // is structurally zero.
       case 'uploadedTemplates':
         return { used: 0, limit: snapshot.definition.limits.uploadedTemplates };
       default: {
