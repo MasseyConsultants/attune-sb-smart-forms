@@ -29,3 +29,5 @@ playwright-report/
 # Starter bundle kept for reference only
 repo-seed/
 
+*.tsbuildinfo
+
