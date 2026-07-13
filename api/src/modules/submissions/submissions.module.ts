@@ -8,9 +8,10 @@ import { SubmissionsService } from './submissions.service';
 
 import { DocumentFillsModule } from '@/modules/document-fills/document-fills.module';
 import { FormsModule } from '@/modules/forms/forms.module';
+import { WorkflowsModule } from '@/modules/workflows/workflows.module';
 
 @Module({
-  imports: [FormsModule, DocumentFillsModule],
+  imports: [FormsModule, DocumentFillsModule, WorkflowsModule],
   controllers: [PublicSubmissionsController, SubmissionsController],
   providers: [SubmissionsRepository, SubmissionsService],
   exports: [SubmissionsService],

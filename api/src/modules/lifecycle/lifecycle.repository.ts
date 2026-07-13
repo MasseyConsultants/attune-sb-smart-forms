@@ -169,13 +169,16 @@ export class LifecycleRepository {
   }
 
   async countOrgEntities(organizationId: string): Promise<Record<string, number>> {
-    const [users, forms, submissions, documentTemplates] = await this.prisma.$transaction([
-      this.prisma.user.count({ where: { organizationId } }),
-      this.prisma.form.count({ where: { organizationId } }),
-      this.prisma.submission.count({ where: { organizationId } }),
-      this.prisma.documentTemplate.count({ where: { organizationId } }),
-    ]);
-    return { users, forms, submissions, documentTemplates };
+    const [users, forms, submissions, documentTemplates, workflows, workflowRuns] =
+      await this.prisma.$transaction([
+        this.prisma.user.count({ where: { organizationId } }),
+        this.prisma.form.count({ where: { organizationId } }),
+        this.prisma.submission.count({ where: { organizationId } }),
+        this.prisma.documentTemplate.count({ where: { organizationId } }),
+        this.prisma.workflow.count({ where: { organizationId } }),
+        this.prisma.workflowRun.count({ where: { organizationId } }),
+      ]);
+    return { users, forms, submissions, documentTemplates, workflows, workflowRuns };
   }
 
   softDeleteOrgData(organizationId: string, now: Date, hardDeleteAt: Date): Promise<unknown> {
@@ -196,6 +199,11 @@ export class LifecycleRepository {
       this.prisma.documentTemplate.updateMany({
         where: { organizationId, deletedAt: null },
         data: { deletedAt: now },
+      }),
+      // Unpublish so submission triggers stop firing, then soft-delete.
+      this.prisma.workflow.updateMany({
+        where: { organizationId, deletedAt: null },
+        data: { deletedAt: now, status: 'ARCHIVED' },
       }),
       this.prisma.organization.update({
         where: { id: organizationId },
@@ -259,6 +267,9 @@ export class LifecycleRepository {
       this.prisma.usageCounter.deleteMany({ where: { organizationId } }),
       this.prisma.entitlementOverride.deleteMany({ where: { organizationId } }),
       // FK order: children before forms, forms before organization.
+      // WorkflowRunStep/WorkflowVersion cascade from their parents.
+      this.prisma.workflowRun.deleteMany({ where: { organizationId } }),
+      this.prisma.workflow.deleteMany({ where: { organizationId } }),
       this.prisma.submission.deleteMany({ where: { organizationId } }),
       this.prisma.documentTemplate.deleteMany({ where: { organizationId } }),
       this.prisma.form.deleteMany({ where: { organizationId } }),

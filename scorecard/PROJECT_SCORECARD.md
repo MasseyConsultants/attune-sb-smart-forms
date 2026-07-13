@@ -5,9 +5,9 @@
 
 ## Current Status
 
-- **Phase:** P3 SmartMapper ✅ complete (S6 done 2026-07-13); P4 Workflow
-  Builder next
-- **Current sprint:** Sprint 7 next (`planning/SPRINT_07.md`)
+- **Phase:** P4 Workflow Builder — engine half done (S7 closed 2026-07-13);
+  builder UI + Growth adapters next
+- **Current sprint:** Sprint 8 next (`planning/SPRINT_08.md`)
 - **Version:** 0.1.0
 
 ## Phase Progress
@@ -18,7 +18,7 @@
 | P1 Paywall Core     | S1–S2   | ✅ Complete | 2026-07-13 — entitlements, Stripe, lifecycle FSM, purge sweep, plan UI |
 | P2 Form Builder     | S3–S4   | ✅ Complete | 2026-07-13 — engine, forms API, builder, public fill, submissions      |
 | P3 SmartMapper      | S5–S6   | ✅ Complete | 2026-07-13 — upload, canvas, auto-map, fill runtime, storage metering  |
-| P4 Workflow Builder | S7–S8   | Not started | —                                                                      |
+| P4 Workflow Builder | S7–S8   | 🔶 S7 done  | 2026-07-13 — engine, adapters, trigger, metering; S8 = builder UI      |
 | P5 Library + Polish | S9      | Not started | —                                                                      |
 | P6 Launch Hardening | S10–S11 | Not started | —                                                                      |
 
@@ -190,13 +190,42 @@
 - `normalizeLabel` parenthetical-stripping bug found in the enterprise source
   fixed here with a regression test
 
+## Sprint 7 Task Status
+
+| #   | Task                    | Status  | Notes                                                                      |
+| --- | ----------------------- | ------- | -------------------------------------------------------------------------- |
+| 1   | Workflows API module    | ✅ Done | 4 models + migration, CRUD, publish FSM w/ version snapshots, run pinning  |
+| 2   | Graph validation        | ✅ Done | Enterprise rules + dup-id/unknown-type checks; trigger-form required       |
+| 3   | Plan-tier node gate     | ✅ Done | Above-tier node on publish → 402 LIMIT_EXCEEDED w/ node list + upgrade URL |
+| 4   | Orchestrator + adapters | ✅ Done | BullMQ queue, routing (branch labels, failure edges), 6 core adapters      |
+| 5   | Trigger + WORKFLOW_RUNS | ✅ Done | Intake hook (never-throw), assert-before/consume-after, SKIPPED_LIMIT rows |
+| 6   | Shared-types drift fix  | ✅ Done | fill_document/send_document first-class in WorkflowNodeType + NODE_TIER    |
+| 7   | Tests                   | ✅ Done | 71 new API specs: walks, adapters, cap matrix, publish FSM, trigger        |
+
+## Sprint 7 Verification (2026-07-13)
+
+- 296 API tests across 23 suites; 61 web tests; 42 form-engine tests — all
+  green; lint + typecheck clean workspace-wide
+- Live E2E smoke (`scripts/smoke-sprint7.ps1`): published a
+  start→fill_document→send_document→notify→end workflow bound to a mapped
+  form → public submission → BullMQ run COMPLETED with a 5-step ledger
+  (fill reused the intake fill in 1ms; send emailed the PDF attachment in
+  215ms) → WORKFLOW_RUNS 0→1, EMAILS 0→1
+- Tier gate verified live: publishing an approval node on the trial org
+  returned 402 `LIMIT_EXCEEDED` with the upgrade URL
+- Cap semantics: WORKFLOW_RUNS at cap → run recorded SKIPPED_LIMIT (no
+  enqueue, no consume, submission untouched); EMAILS/DOC_FILLS at cap →
+  step SKIPPED, run continues — unit-tested matrix
+- Purge sweep extended: workflows/runs soft+hard delete, `workflow-artifacts/`
+  blob prefix removal, tombstone entity counts include workflows
+
 ## Quality Gates
 
-| Gate              | Target | Current                                                               |
-| ----------------- | ------ | --------------------------------------------------------------------- |
-| API test coverage | 80%    | Improving — 17 suites / 225 tests; paywall + lifecycle + forms + docs |
-| Web test coverage | 70%    | Growing — 12 suites / 61 tests (+ 42 engine tests in form-engine)     |
-| CI status         | Green  | Workflow added S0; validating on pushes                               |
+| Gate              | Target | Current                                                                           |
+| ----------------- | ------ | --------------------------------------------------------------------------------- |
+| API test coverage | 80%    | Improving — 23 suites / 296 tests; paywall + lifecycle + forms + docs + workflows |
+| Web test coverage | 70%    | Growing — 12 suites / 61 tests (+ 42 engine tests in form-engine)                 |
+| CI status         | Green  | Workflow added S0; validating on pushes                                           |
 
 ## Unplanned Items
 

@@ -286,6 +286,7 @@ export class LifecycleService {
     // failure converges.
     await this.storage.deletePrefix(`document-templates/${organizationId}`);
     await this.storage.deletePrefix(`document-fills/${organizationId}`);
+    await this.storage.deletePrefix(`workflow-artifacts/${organizationId}`);
 
     const hardDeleteAt = new Date(now.getTime() + HARD_DELETE_DELAY_DAYS * DAY_MS);
     await this.repository.softDeleteOrgData(organizationId, now, hardDeleteAt);

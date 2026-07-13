@@ -11,6 +11,6 @@ import { EntitlementsService } from './entitlements.service';
 @Global()
 @Module({
   providers: [EntitlementsRepository, EntitlementsService, EntitlementsGuard],
-  exports: [EntitlementsService, EntitlementsGuard],
+  exports: [EntitlementsService, EntitlementsGuard, EntitlementsRepository],
 })
 export class EntitlementsModule {}

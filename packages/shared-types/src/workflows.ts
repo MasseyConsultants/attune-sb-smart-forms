@@ -96,14 +96,62 @@ export interface WorkflowPublishedData {
   version: number;
 }
 
-export interface WorkflowExecution {
+// --- Runs (S7 engine) ---
+
+export type WorkflowRunStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
+  // Recorded (never silently dropped) when WORKFLOW_RUNS is at cap.
+  | 'SKIPPED_LIMIT'
+  | 'CANCELED';
+
+export type WorkflowRunStepStatus = 'COMPLETED' | 'FAILED' | 'SKIPPED';
+
+export interface WorkflowRunStepSummary {
+  id: string;
+  nodeId: string;
+  nodeType: WorkflowNodeType;
+  status: WorkflowRunStepStatus;
+  error: string | null;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+export interface WorkflowRunSummary {
   id: string;
   workflowId: string;
-  status: string;
-  triggerData: Record<string, unknown> | null;
-  resultData: Record<string, unknown> | null;
-  startedAt: string;
+  workflowVersion: number;
+  status: WorkflowRunStatus;
+  submissionId: string | null;
+  triggerType: string;
+  error: string | null;
+  startedAt: string | null;
   completedAt: string | null;
-  executedBy: string | null;
   createdAt: string;
+}
+
+export interface WorkflowRunDetail extends WorkflowRunSummary {
+  steps: WorkflowRunStepSummary[];
+}
+
+// --- API contracts ---
+
+export interface WorkflowSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  status: WorkflowStatus;
+  version: number;
+  triggerFormId: string | null;
+  triggerFormName: string | null;
+  runCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowDetail extends WorkflowSummary {
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
 }

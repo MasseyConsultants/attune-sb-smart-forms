@@ -77,6 +77,29 @@ enum DocumentTemplateStatus {
   FAILED
 }
 
+enum WorkflowStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum WorkflowRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  // Recorded when WORKFLOW_RUNS is at cap — visible in the runs list, never
+  // silently dropped. The trigger submission is untouched.
+  SKIPPED_LIMIT
+  CANCELED
+}
+
+enum WorkflowRunStepStatus {
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
 // --- Tenancy ---
 
 model Organization {
@@ -106,6 +129,8 @@ model Organization {
   forms                Form[]
   submissions          Submission[]
   documentTemplates    DocumentTemplate[]
+  workflows            Workflow[]
+  workflowRuns         WorkflowRun[]
 
   @@index([lifecycleState])
   @@index([deletedAt])
@@ -420,6 +445,113 @@ model FormVersion {
   @@unique([formId, version])
   @@index([formId])
   @@map("form_versions")
+}
+
+// --- Workflows (Sprint 7) ---
+
+// Visual node-graph automation. The mutable draft graph lives on the row;
+// every publish snapshots an immutable WorkflowVersion that runs pin to.
+model Workflow {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  // Graph: WorkflowNode[] / WorkflowEdge[] (shared-types contracts)
+  nodes       Json           @default("[]")
+  edges       Json           @default("[]")
+  status      WorkflowStatus @default(DRAFT)
+  version     Int            @default(1)
+  color       String         @default("#F97316")
+
+  // The form whose accepted public submissions trigger this workflow.
+  // Authoritative for trigger lookup; the graph's form node mirrors it.
+  triggerFormId String? @map("trigger_form_id")
+
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdById    String       @map("created_by_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  versions WorkflowVersion[]
+  runs     WorkflowRun[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([triggerFormId])
+  @@index([deletedAt])
+  @@map("workflows")
+}
+
+// Immutable snapshot per publish. Runs execute against a version, never the
+// mutable draft — mirrors FormVersion.
+model WorkflowVersion {
+  id          String   @id @default(uuid())
+  workflowId  String   @map("workflow_id")
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version     Int
+  nodes       Json
+  edges       Json
+  publishedBy String?  @map("published_by")
+  publishedAt DateTime @default(now()) @map("published_at")
+
+  @@unique([workflowId, version])
+  @@index([workflowId])
+  @@map("workflow_versions")
+}
+
+// One execution of a workflow version. State is the shared blackboard adapters
+// read/write; each node execution appends a WorkflowRunStep ledger row.
+model WorkflowRun {
+  id              String            @id @default(uuid())
+  workflowId      String            @map("workflow_id")
+  workflow        Workflow          @relation(fields: [workflowId], references: [id])
+  workflowVersion Int               @map("workflow_version")
+  status          WorkflowRunStatus @default(PENDING)
+  currentNodeId   String?           @map("current_node_id")
+  state           Json              @default("{}")
+  // 'submission' at v1; 'manual' | 'schedule' later
+  triggerType     String            @default("submission") @map("trigger_type")
+  // Trigger submission — reference only (no FK) so runs survive submission
+  // soft-deletes and purge ordering stays simple.
+  submissionId    String?           @map("submission_id")
+  error           String?
+
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  steps WorkflowRunStep[]
+
+  @@index([workflowId, status])
+  @@index([organizationId, status])
+  @@index([submissionId])
+  @@map("workflow_runs")
+}
+
+// Per-node execution ledger: status, output, error, timing. Input is the run
+// state at step start — not duplicated per row to keep the table lean.
+model WorkflowRunStep {
+  id       String                @id @default(uuid())
+  runId    String                @map("run_id")
+  run      WorkflowRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
+  nodeId   String                @map("node_id")
+  nodeType String                @map("node_type")
+  status   WorkflowRunStepStatus
+  output   Json?
+  error    String?
+  durationMs Int? @map("duration_ms")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([runId])
+  @@map("workflow_run_steps")
 }
 
 model StripeWebhookEvent {

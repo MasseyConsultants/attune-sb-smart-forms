@@ -11,6 +11,6 @@ import { EntitlementsModule } from '@/modules/entitlements/entitlements.module';
 @Module({
   imports: [DocumentTemplatesModule, EntitlementsModule],
   providers: [DocumentFillsRepository, DocumentFillsService],
-  exports: [DocumentFillsService],
+  exports: [DocumentFillsService, DocumentFillsRepository],
 })
 export class DocumentFillsModule {}

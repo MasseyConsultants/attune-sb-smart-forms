@@ -37,6 +37,10 @@ const documentFills = {
   fillForSubmission: jest.fn().mockResolvedValue(undefined),
 };
 
+const workflowTrigger = {
+  onSubmissionAccepted: jest.fn().mockResolvedValue(undefined),
+};
+
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 const USER = {
@@ -106,6 +110,7 @@ function makeService(): SubmissionsService {
     formsRepository as any,
     entitlements as any,
     documentFills as any,
+    workflowTrigger as any,
     logger as any,
   );
 }

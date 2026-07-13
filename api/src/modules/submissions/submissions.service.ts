@@ -30,6 +30,7 @@ import { SecureLoggerService } from '@/modules/common/logger/secure-logger.servi
 import { DocumentFillsService } from '@/modules/document-fills/document-fills.service';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
 import { FormsRepository } from '@/modules/forms/forms.repository';
+import { WorkflowTriggerService } from '@/modules/workflows/engine/workflow-trigger.service';
 
 export interface SubmissionDto {
   readonly id: string;
@@ -86,6 +87,7 @@ export class SubmissionsService {
     private readonly formsRepository: FormsRepository,
     private readonly entitlements: EntitlementsService,
     private readonly documentFills: DocumentFillsService,
+    private readonly workflowTrigger: WorkflowTriggerService,
     private readonly logger: SecureLoggerService,
   ) {}
 
@@ -180,6 +182,16 @@ export class SubmissionsService {
       await this.documentFills.fillForSubmission({
         submissionId: submission.id,
         formId: target.form.id,
+        organizationId,
+        data,
+      });
+
+      // Workflow trigger (S7): enqueue runs for published workflows bound to
+      // this form. Same never-throw rule; quarantined rows never trigger runs.
+      await this.workflowTrigger.onSubmissionAccepted({
+        submissionId: submission.id,
+        formId: target.form.id,
+        formName: target.form.name,
         organizationId,
         data,
       });

@@ -4,14 +4,16 @@
 > Self-serve, subscription-based forms + documents + workflow SaaS for small
 > businesses. Derivative of the enterprise `attune-smart-forms` platform.
 
-**Status:** Phase 3 complete (v0.1.0) — self-serve signup with 14-day
+**Status:** Phase 4 engine half done (v0.1.0) — self-serve signup with 14-day
 trial, entitlement/metering paywall, Stripe billing scaffolding, org data
 lifecycle, form builder with 30 field types, versioned publishing, public fill
-pages, submissions with quarantine-not-drop metering, CSV/Excel export, and
-the full SmartMapper moat: upload your existing PDF/DOCX form, auto-map fields
-onto it (fuzzy label matching with a visual review step), and every public
-submission fills your exact PDF — metered, stored, and downloadable from the
-data view. Phase 4 (workflow builder) is next.
+pages, submissions with quarantine-not-drop metering, CSV/Excel export, the
+full SmartMapper moat (upload your existing PDF/DOCX form, auto-map fields,
+every public submission fills your exact PDF), and now the workflow engine:
+published workflows bound to a form run on BullMQ when a submission lands —
+condition branching, document fill/send, branded emails, notify — with a
+per-node run ledger and WORKFLOW_RUNS/EMAILS metering. Sprint 8 adds the
+visual builder UI and approval/webhook nodes.
 
 ## Stack
 

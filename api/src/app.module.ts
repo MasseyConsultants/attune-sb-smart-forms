@@ -38,6 +38,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { SubmissionsModule } from './modules/submissions/submissions.module';
 import { UsersModule } from './modules/users/users.module';
+import { WorkflowsModule } from './modules/workflows/workflows.module';
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { UsersModule } from './modules/users/users.module';
     SubmissionsModule,
     DocumentTemplatesModule,
     DocumentFillsModule,
+    WorkflowsModule,
   ],
   providers: [
     // NestJS applies APP_FILTERs in reverse declaration order — the catch-all
