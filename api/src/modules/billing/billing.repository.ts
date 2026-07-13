@@ -42,6 +42,14 @@ export class BillingRepository {
     });
   }
 
+  findOwnerEmail(organizationId: string): Promise<{ email: string; firstName: string } | null> {
+    return this.prisma.user.findFirst({
+      where: { organizationId, role: 'OWNER', isActive: true, deletedAt: null },
+      select: { email: true, firstName: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   /**
    * Records a webhook event id. Returns false when the id was already recorded,
    * signalling the handler to skip (idempotent replay).

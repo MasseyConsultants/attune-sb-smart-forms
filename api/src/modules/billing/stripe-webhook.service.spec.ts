@@ -15,6 +15,7 @@ const repository = {
   updateSubscription: jest.fn(),
   recordWebhookEvent: jest.fn(),
   attachPaymentFingerprint: jest.fn(),
+  findOwnerEmail: jest.fn().mockResolvedValue({ email: 'owner@example.com', firstName: 'Alex' }),
 };
 
 const stripeSubscriptionFixture = {
@@ -41,6 +42,8 @@ const stripe = {
 const entitlements = { invalidate: jest.fn() };
 const lifecycle = { restoreIfReadOnly: jest.fn().mockResolvedValue(false) };
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const emailService = { send: jest.fn().mockResolvedValue(undefined) };
+const config = { get: jest.fn((_key: string, defaultValue?: unknown) => defaultValue) };
 
 const LOCAL_SUB = {
   id: 'local-sub-1',
@@ -59,6 +62,8 @@ function makeService(): StripeWebhookService {
     entitlements as any,
     lifecycle as any,
     logger as any,
+    emailService as any,
+    config as any,
   );
 }
 
@@ -207,9 +212,15 @@ describe('invoice events (dunning)', () => {
         pastDueSince: expect.any(Date),
       }),
     );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'owner@example.com',
+        subject: expect.stringContaining('Payment failed'),
+      }),
+    );
   });
 
-  it('a second payment_failed keeps the original dunning start', async () => {
+  it('a second payment_failed keeps the original dunning start and does not re-notify', async () => {
     const firstFailure = new Date('2026-07-01T00:00:00Z');
     repository.findSubscriptionByStripeCustomer.mockResolvedValue({
       ...LOCAL_SUB,
@@ -222,6 +233,7 @@ describe('invoice events (dunning)', () => {
       'local-sub-1',
       expect.objectContaining({ pastDueSince: firstFailure }),
     );
+    expect(emailService.send).not.toHaveBeenCalled();
   });
 
   it('invoice.paid restores ACTIVE and clears the dunning clock', async () => {

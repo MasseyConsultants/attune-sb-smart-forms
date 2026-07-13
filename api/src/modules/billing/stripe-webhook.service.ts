@@ -7,6 +7,7 @@
 import { createHash } from 'crypto';
 
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Subscription, SubscriptionStatus } from '@prisma/client';
 import Stripe from 'stripe';
 
@@ -16,6 +17,12 @@ import { StripeClientService } from './stripe-client.service';
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
 import { LifecycleService } from '@/modules/lifecycle/lifecycle.service';
+import {
+  brandEmailButton,
+  brandEmailShell,
+  escapeHtml,
+} from '@/modules/notifications/email-brand-shell';
+import { EmailService } from '@/modules/notifications/email.service';
 
 const CONTEXT = 'StripeWebhookService';
 
@@ -27,6 +34,8 @@ export class StripeWebhookService {
     private readonly entitlements: EntitlementsService,
     private readonly lifecycle: LifecycleService,
     private readonly logger: SecureLoggerService,
+    private readonly emailService: EmailService,
+    private readonly config: ConfigService,
   ) {}
 
   verifyAndParse(rawBody: Buffer, signature: string): Stripe.Event {
@@ -173,6 +182,7 @@ export class StripeWebhookService {
     if (!local) {
       return;
     }
+    const isFirstFailure = local.pastDueSince === null;
     await this.repository.updateSubscription(local.id, {
       status: SubscriptionStatus.PAST_DUE,
       // First failure starts the dunning clock; later failures keep the original.
@@ -180,6 +190,9 @@ export class StripeWebhookService {
     });
     await this.entitlements.invalidate(local.organizationId);
     this.logger.warn(`Org ${local.organizationId} invoice payment failed — PAST_DUE`, CONTEXT);
+    if (isFirstFailure) {
+      await this.sendDunningNotice(local.organizationId);
+    }
   }
 
   private async onInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
@@ -197,6 +210,42 @@ export class StripeWebhookService {
   }
 
   // --- Helpers ---
+
+  /** Branded dunning notice — sent once when the dunning clock starts. */
+  private async sendDunningNotice(organizationId: string): Promise<void> {
+    try {
+      const owner = await this.repository.findOwnerEmail(organizationId);
+      if (!owner) {
+        return;
+      }
+      const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
+      await this.emailService.send({
+        to: owner.email,
+        subject: 'Payment failed — action needed to keep your workspace active',
+        html: brandEmailShell({
+          title: 'We could not process your payment',
+          bodyHtml: `
+            <p style="margin:0 0 16px;font-size:15px;color:#334155;">
+              Hi ${escapeHtml(owner.firstName)}, your latest invoice payment did not go
+              through. We will retry automatically, but please update your payment method
+              to avoid any interruption.
+            </p>
+            <p style="margin:0 0 24px;font-size:15px;color:#334155;">
+              If payment is not resolved, your subscription will be canceled and your
+              workspace will become read-only. Nothing is deleted right away — your data
+              stays safe through the retention window.
+            </p>
+            ${brandEmailButton(`${appUrl}/billing`, 'Update payment method')}`,
+        }),
+      });
+    } catch (err) {
+      this.logger.error(
+        `Dunning notice failed for org ${organizationId}: ${err instanceof Error ? err.message : String(err)}`,
+        undefined,
+        CONTEXT,
+      );
+    }
+  }
 
   private findByInvoiceCustomer(invoice: Stripe.Invoice): Promise<Subscription | null> {
     const customerId = this.asId(invoice.customer);
