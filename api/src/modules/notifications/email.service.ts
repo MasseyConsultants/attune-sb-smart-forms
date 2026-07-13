@@ -1,8 +1,11 @@
 // Author: Robert Massey | Created: 2026-07-12 | Module: notifications
-// Purpose: Sends transactional emails via Resend (preferred) or nodemailer SMTP (fallback).
+// Purpose: Sends transactional emails through a single nodemailer transport.
+// Provider decision (S8): Resend over SMTP — smtp.resend.com:465, user
+// "resend", password = the API key. One code path for Resend, Mailpit, and
+// any future relay; only the connection settings differ.
 // Transport priority: RESEND_API_KEY → SMTP_HOST → console stub.
-// The console stub logs the full body so invite/reset links are accessible without a mail relay.
-// Ported from the enterprise edition.
+// The console stub logs the full body + links so invite/reset/approval links
+// are accessible in local dev without a mail relay.
 
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -26,33 +29,41 @@ export interface EmailPayload {
 
 type Transport = 'resend' | 'smtp' | 'stub';
 
+const RESEND_SMTP_HOST = 'smtp.resend.com';
+const RESEND_SMTP_PORT = 465;
+const RESEND_SMTP_USER = 'resend';
+
 @Injectable()
 export class EmailService {
   private readonly transport: Transport;
-  private readonly resendApiKey: string;
-  private readonly resendFrom: string;
-  private readonly smtpTransporter: nodemailer.Transporter | null = null;
-  private readonly smtpFrom: string;
+  private readonly transporter: nodemailer.Transporter | null = null;
+  private readonly from: string;
 
   constructor(
     private readonly config: ConfigService,
     private readonly logger: SecureLoggerService,
   ) {
+    const provider = (this.config.get<string>('EMAIL_PROVIDER') ?? 'resend').toLowerCase();
     const resendKey = this.config.get<string>('RESEND_API_KEY');
     const smtpHost = this.config.get<string>('SMTP_HOST');
-    const fromEmail = this.config.get<string>('RESEND_FROM_EMAIL') ?? 'noreply@attuneitus.com';
-    const fromName = this.config.get<string>('RESEND_FROM_NAME') ?? 'Attune Smart Forms';
 
-    this.resendApiKey = resendKey ?? '';
-    this.resendFrom = `"${fromName}" <${fromEmail}>`;
-    this.smtpFrom = this.config.get<string>('SMTP_FROM') ?? fromEmail;
+    // EMAIL_FROM accepts the full '"Name <addr>"' form (enterprise convention)
+    // or a bare address, which gets the default display name.
+    const rawFrom = this.config.get<string>('EMAIL_FROM') ?? 'noreply@attuneitus.com';
+    this.from = rawFrom.includes('<') ? rawFrom : `"Attune Smart Forms" <${rawFrom}>`;
 
-    if (resendKey) {
+    if (provider === 'resend' && resendKey) {
       this.transport = 'resend';
-      this.logger.log('Email transport: Resend HTTP API', 'EmailService');
+      this.transporter = nodemailer.createTransport({
+        host: RESEND_SMTP_HOST,
+        port: RESEND_SMTP_PORT,
+        secure: true, // 465 is implicit TLS
+        auth: { user: RESEND_SMTP_USER, pass: resendKey },
+      });
+      this.logger.log(`Email transport: Resend SMTP (${RESEND_SMTP_HOST})`, 'EmailService');
     } else if (smtpHost) {
       this.transport = 'smtp';
-      this.smtpTransporter = nodemailer.createTransport({
+      this.transporter = nodemailer.createTransport({
         host: smtpHost,
         port: this.config.get<number>('SMTP_PORT') ?? 587,
         secure: this.config.get<boolean>('SMTP_SECURE') ?? false,
@@ -80,25 +91,23 @@ export class EmailService {
   }
 
   async send(payload: EmailPayload): Promise<void> {
+    if (!this.transporter) {
+      this.logStub(payload);
+      return;
+    }
     try {
-      if (this.transport === 'resend') {
-        await this.sendViaResend(payload);
-      } else if (this.transport === 'smtp' && this.smtpTransporter) {
-        await this.smtpTransporter.sendMail({
-          from: this.smtpFrom,
-          to: payload.to,
-          subject: payload.subject,
-          html: payload.html,
-          text: payload.text ?? payload.html.replace(/<[^>]+>/g, ''),
-          attachments: payload.attachments?.map((a) => ({
-            filename: a.filename,
-            content: a.content,
-            contentType: a.contentType,
-          })),
-        });
-      } else {
-        this.logStub(payload);
-      }
+      await this.transporter.sendMail({
+        from: this.from,
+        to: payload.to,
+        subject: payload.subject,
+        html: payload.html,
+        text: payload.text ?? payload.html.replace(/<[^>]+>/g, ''),
+        attachments: payload.attachments?.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType,
+        })),
+      });
     } catch (err) {
       const toLabel = Array.isArray(payload.to) ? payload.to.join(', ') : payload.to;
       this.logger.error(
@@ -107,43 +116,6 @@ export class EmailService {
         'EmailService',
       );
       throw err;
-    }
-  }
-
-  private async sendViaResend(payload: EmailPayload): Promise<void> {
-    const body: Record<string, unknown> = {
-      from: this.resendFrom,
-      to: Array.isArray(payload.to) ? payload.to : [payload.to],
-      subject: payload.subject,
-      html: payload.html,
-      text: payload.text ?? payload.html.replace(/<[^>]+>/g, ''),
-    };
-
-    if (payload.attachments && payload.attachments.length > 0) {
-      body['attachments'] = payload.attachments.map((a) => ({
-        filename: a.filename,
-        content: Buffer.isBuffer(a.content)
-          ? a.content.toString('base64')
-          : Buffer.from(a.content).toString('base64'),
-      }));
-    }
-
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.resendApiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      interface ResendError {
-        message?: string;
-        name?: string;
-      }
-      const err = (await res.json().catch(() => ({}))) as ResendError;
-      throw new Error(`Resend API error ${res.status}: ${err.message ?? err.name ?? 'unknown'}`);
     }
   }
 

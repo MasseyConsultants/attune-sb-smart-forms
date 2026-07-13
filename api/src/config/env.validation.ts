@@ -55,16 +55,16 @@ export const envValidationSchema = Joi.object({
   STRIPE_PRICE_BUSINESS_MONTHLY: Joi.string().optional().allow(''),
   STRIPE_PRICE_BUSINESS_ANNUAL: Joi.string().optional().allow(''),
 
-  // --- Email (Resend preferred, SMTP fallback, console stub otherwise) ---
+  // --- Email (Resend via SMTP preferred, generic SMTP fallback, console stub otherwise) ---
+  EMAIL_PROVIDER: Joi.string().valid('resend', 'smtp').default('resend'),
   RESEND_API_KEY: Joi.string().optional().allow(''),
-  RESEND_FROM_EMAIL: Joi.string().optional().allow('').default('noreply@attuneitus.com'),
-  RESEND_FROM_NAME: Joi.string().optional().allow('').default('Attune Smart Forms'),
+  // Bare address or the full '"Name <addr>"' form (enterprise convention)
+  EMAIL_FROM: Joi.string().optional().allow('').default('noreply@attuneitus.com'),
   SMTP_HOST: Joi.string().optional().allow(''),
   SMTP_PORT: Joi.number().integer().min(1).max(65535).default(587),
   SMTP_SECURE: Joi.boolean().default(false),
   SMTP_USER: Joi.string().optional().allow(''),
   SMTP_PASS: Joi.string().optional().allow(''),
-  SMTP_FROM: Joi.string().optional().allow('').default('noreply@attune-sb.local'),
 
   // --- BFF trust boundary ---
   // Required in production so API routes cannot be hit without the web BFF key.
