@@ -3,6 +3,7 @@
 // (uploadedTemplates cap, per-plan maxUploadBytes) are paywall behaviour and
 // get the same exhaustive treatment as the rest of the entitlement layer.
 
+import { PLAN_ENTITLEMENTS } from '@attune-sb/shared-types';
 import {
   BadRequestException,
   ConflictException,
@@ -14,10 +15,9 @@ import { Test } from '@nestjs/testing';
 import { DocumentTemplateStatus, Role } from '@prisma/client';
 import { PDFDocument } from 'pdf-lib';
 
-import { PLAN_ENTITLEMENTS } from '@attune-sb/shared-types';
-
 import { DocumentTemplatesRepository } from './document-templates.repository';
-import { DocumentTemplatesService, UploadedFile } from './document-templates.service';
+import type { UploadedFile } from './document-templates.service';
+import { DocumentTemplatesService } from './document-templates.service';
 
 // Puppeteer's ESM entry cannot be parsed by Jest (and launching headless
 // Chrome has no place in a unit test) — the DOCX branch is covered by

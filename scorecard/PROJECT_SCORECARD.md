@@ -5,22 +5,22 @@
 
 ## Current Status
 
-- **Phase:** P2 Form Builder ✅ COMPLETE (S4 done 2026-07-13) — Phase 2 stop
-  condition reached; manual click-through checklist delivered
-- **Current sprint:** Sprint 5 next (`planning/SPRINT_05.md`) — P3 SmartMapper
+- **Phase:** P3 SmartMapper — first half ✅ (S5 done 2026-07-13); S6 next
+  (auto-mapping + fill runtime)
+- **Current sprint:** Sprint 6 next (`planning/SPRINT_06.md`)
 - **Version:** 0.1.0
 
 ## Phase Progress
 
-| Phase               | Sprints | Status      | Notes                                                                  |
-| ------------------- | ------- | ----------- | ---------------------------------------------------------------------- |
-| P0 Foundation       | S0      | ✅ Complete | 2026-07-12 — auth, branding, CI, seed green                            |
-| P1 Paywall Core     | S1–S2   | ✅ Complete | 2026-07-13 — entitlements, Stripe, lifecycle FSM, purge sweep, plan UI |
-| P2 Form Builder     | S3–S4   | ✅ Complete | 2026-07-13 — engine, forms API, builder, public fill, submissions      |
-| P3 SmartMapper      | S5–S6   | Not started | —                                                                      |
-| P4 Workflow Builder | S7–S8   | Not started | —                                                                      |
-| P5 Library + Polish | S9      | Not started | —                                                                      |
-| P6 Launch Hardening | S10–S11 | Not started | —                                                                      |
+| Phase               | Sprints | Status      | Notes                                                                   |
+| ------------------- | ------- | ----------- | ----------------------------------------------------------------------- |
+| P0 Foundation       | S0      | ✅ Complete | 2026-07-12 — auth, branding, CI, seed green                             |
+| P1 Paywall Core     | S1–S2   | ✅ Complete | 2026-07-13 — entitlements, Stripe, lifecycle FSM, purge sweep, plan UI  |
+| P2 Form Builder     | S3–S4   | ✅ Complete | 2026-07-13 — engine, forms API, builder, public fill, submissions       |
+| P3 SmartMapper      | S5–S6   | 🔶 S5 done  | 2026-07-13 — upload pipeline, canvas, mapping studio; S6: auto-map+fill |
+| P4 Workflow Builder | S7–S8   | Not started | —                                                                       |
+| P5 Library + Polish | S9      | Not started | —                                                                       |
+| P6 Launch Hardening | S10–S11 | Not started | —                                                                       |
 
 ## Sprint 0 Task Status
 
@@ -137,13 +137,39 @@
 - Form-engine `./logic` subpath export lets the API validate against the
   published snapshot without pulling React into the Nest build
 
+## Sprint 5 Task Status
+
+| #   | Task                     | Status  | Notes                                                                    |
+| --- | ------------------------ | ------- | ------------------------------------------------------------------------ |
+| 1   | Document templates API   | ✅ Done | Multipart upload, PDF inspect/sanitize, DOCX→PDF, plan gating, ADR-0003  |
+| 2   | Blob storage service     | ✅ Done | Local-disk driver, S3-shaped interface; wired into purge sweep phase 1   |
+| 3   | Document canvas UI       | ✅ Done | pdfjs render + zoom, drag/resize tags, multi-select, align, smart guides |
+| 4   | Template management page | ✅ Done | /templates list, upload + form link, delete, LIMIT_EXCEEDED upgrade CTA  |
+| 5   | Mapping studio           | ✅ Done | /templates/[id] — sidebar fields, save mappings, unsaved-changes guard   |
+| 6   | Tests                    | ✅ Done | 15 API specs (inspector + service), 16 web specs (guides, sidebar, tag)  |
+
+## Sprint 5 Verification (2026-07-13)
+
+- 185 API tests across 12 suites; 51 web tests across 10 suites — all green
+- Live smoke (trial org, cap 1): PDF upload → `READY` with correct page
+  count/dims; 2nd upload → `LIMIT_EXCEEDED {limit:1, current:1, upgradeUrl}`;
+  PDF streams 200; PATCH links form; PUT mappings persists; out-of-bounds page
+  mapping rejected 400; DELETE 204 removes blobs + row
+- Lifecycle integration: purge phase 1 now deletes `document-templates/{orgId}`
+  blobs; soft/hard delete cover forms/submissions/templates rows
+- `uploadedTemplates` counted resource is live (was structurally 0 since S1)
+- DOCX conversion path ported (mammoth + Puppeteer, `waitUntil: 'load'`);
+  manual DOCX upload verification on the S6 checklist
+- SmartMapper mapping types centralized in `@attune-sb/shared-types`
+  (enterprise had them duplicated in API + admin UI)
+
 ## Quality Gates
 
-| Gate              | Target | Current                                                                 |
-| ----------------- | ------ | ----------------------------------------------------------------------- |
-| API test coverage | 80%    | Improving — 10 suites / 170 tests; paywall + lifecycle + forms + intake |
-| Web test coverage | 70%    | Growing — 7 suites / 35 tests (+ 42 engine tests in form-engine)        |
-| CI status         | Green  | Workflow added S0; validating on pushes                                 |
+| Gate              | Target | Current                                                               |
+| ----------------- | ------ | --------------------------------------------------------------------- |
+| API test coverage | 80%    | Improving — 12 suites / 185 tests; paywall + lifecycle + forms + docs |
+| Web test coverage | 70%    | Growing — 10 suites / 51 tests (+ 42 engine tests in form-engine)     |
+| CI status         | Green  | Workflow added S0; validating on pushes                               |
 
 ## Unplanned Items
 

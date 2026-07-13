@@ -4,10 +4,12 @@
 > Self-serve, subscription-based forms + documents + workflow SaaS for small
 > businesses. Derivative of the enterprise `attune-smart-forms` platform.
 
-**Status:** Phase 2 complete (v0.1.0) — self-serve signup with 14-day trial,
-entitlement/metering paywall, Stripe billing scaffolding, org data lifecycle,
-form builder with 30 field types, versioned publishing, public fill pages,
-submissions with quarantine-not-drop metering, CSV/Excel export.
+**Status:** Phase 3 in progress (v0.1.0) — self-serve signup with 14-day
+trial, entitlement/metering paywall, Stripe billing scaffolding, org data
+lifecycle, form builder with 30 field types, versioned publishing, public fill
+pages, submissions with quarantine-not-drop metering, CSV/Excel export, and
+SmartMapper templates: upload your existing PDF/DOCX form and visually map
+fields onto it (auto-mapping + document fill land in Sprint 6).
 
 ## Stack
 
@@ -16,7 +18,7 @@ PostgreSQL 16 + Redis 7 (Docker), Prisma, Stripe, BullMQ.
 
 | Package                  | Purpose                                                                  |
 | ------------------------ | ------------------------------------------------------------------------ |
-| `api/`                   | REST API — auth, entitlements, billing, forms, submissions               |
+| `api/`                   | REST API — auth, entitlements, billing, forms, submissions, templates    |
 | `web/`                   | Marketing + auth + dashboard + builder + public fill pages               |
 | `packages/shared-types`  | API contracts, enums, `PLAN_ENTITLEMENTS` (paywall source of truth)      |
 | `packages/form-engine`   | Form renderer + conditional logic / validation (`./logic` is React-free) |
@@ -53,8 +55,12 @@ Swagger lives at `http://localhost:3001/api/docs` in dev.
 | Demo org owner | `owner@demo.attune-sb.local` | `DemoOwnerPass#2026`  |
 
 The demo org starts on an active 14-day trial (2 published forms,
-50 submissions/mo, 10 document fills/mo). Or sign up fresh at
-`http://localhost:3000/signup` — no credit card required.
+50 submissions/mo, 10 document fills/mo, 1 uploaded template). Or sign up
+fresh at `http://localhost:3000/signup` — no credit card required.
+
+Template uploads are stored on local disk (`api/storage/` by default;
+override with `STORAGE_LOCAL_DIR`). An S3-compatible driver is backlogged
+(SB-017).
 
 ### Stripe (optional for local dev)
 
