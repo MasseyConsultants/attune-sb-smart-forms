@@ -27,6 +27,7 @@ const repository = {
   writeConsumption: jest.fn(),
   markSoftWarned: jest.fn(),
   countActiveUsers: jest.fn(),
+  findOwnerEmail: jest.fn().mockResolvedValue({ email: 'owner@example.com' }),
 };
 
 const cache = {
@@ -42,12 +43,20 @@ const config = {
 
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
+const emailService = { send: jest.fn().mockResolvedValue(undefined) };
+
 const ORG = 'org-1';
 
 function makeService(): EntitlementsService {
   // Reason: constructor injection with hand-rolled mocks; the structural shape
   // is what matters, not the concrete Nest provider classes.
-  return new EntitlementsService(repository as any, cache as any, config as any, logger as any);
+  return new EntitlementsService(
+    repository as any,
+    cache as any,
+    config as any,
+    logger as any,
+    emailService as any,
+  );
 }
 
 function mockPlan(planId: PlanId, anchorDay = 1): void {
@@ -261,6 +270,13 @@ describe('EntitlementsService.consume', () => {
 
     await service.consume(ORG, Meter.SUBMISSIONS, { idempotencyKey: 'sub:40' });
     expect(repository.markSoftWarned).toHaveBeenCalledTimes(1);
+    expect(emailService.send).toHaveBeenCalledTimes(1);
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'owner@example.com',
+        subject: expect.stringContaining('80%'),
+      }),
+    );
 
     // Already latched — a later consumption must not warn again.
     repository.writeConsumption.mockResolvedValue({
@@ -269,6 +285,18 @@ describe('EntitlementsService.consume', () => {
     });
     await service.consume(ORG, Meter.SUBMISSIONS, { idempotencyKey: 'sub:41' });
     expect(repository.markSoftWarned).toHaveBeenCalledTimes(1);
+    expect(emailService.send).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed warning email never fails the consumption', async () => {
+    mockPlan('trial');
+    emailService.send.mockRejectedValueOnce(new Error('smtp down'));
+    repository.writeConsumption.mockResolvedValue({ applied: true, counter: counterRow(48) });
+
+    const state = await service.consume(ORG, Meter.SUBMISSIONS, { idempotencyKey: 'sub:48' });
+
+    expect(state.used).toBe(48);
+    expect(logger.error).toHaveBeenCalled();
   });
 
   it('does not warn below the soft threshold', async () => {

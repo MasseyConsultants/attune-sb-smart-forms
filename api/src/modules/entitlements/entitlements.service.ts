@@ -31,6 +31,12 @@ import { NON_PERIODIC_END, NON_PERIODIC_START, currentUsagePeriod } from './peri
 
 import { AppCacheService } from '@/modules/common/cache/app-cache.service';
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
+import {
+  brandEmailButton,
+  brandEmailShell,
+  escapeHtml,
+} from '@/modules/notifications/email-brand-shell';
+import { EmailService } from '@/modules/notifications/email.service';
 
 const PLAN_CACHE_TTL_SECONDS = 60;
 const USAGE_CACHE_TTL_SECONDS = 30;
@@ -63,6 +69,7 @@ export class EntitlementsService {
     private readonly cache: AppCacheService,
     private readonly config: ConfigService,
     private readonly logger: SecureLoggerService,
+    private readonly emailService: EmailService,
   ) {}
 
   // --- Plan resolution ---
@@ -332,8 +339,8 @@ export class EntitlementsService {
   }
 
   /**
-   * Soft-limit latch: fires once per period when usage crosses 80%. S1 logs the
-   * signal (the banner comes from the usage summary ratio); the email lands in S2.
+   * Soft-limit latch: fires once per period when usage crosses 80% — marks the
+   * counter and emails the org owner. Email failures never fail the consumption.
    */
   private async maybeSoftWarn(
     organizationId: string,
@@ -352,5 +359,36 @@ export class EntitlementsService {
       `Org ${organizationId} crossed ${Math.round(SOFT_LIMIT_RATIO * 100)}% of ${counter.meter} (${used}/${limit})`,
       'EntitlementsService',
     );
+
+    try {
+      const owner = await this.repository.findOwnerEmail(organizationId);
+      if (!owner) {
+        return;
+      }
+      const meterLabel = counter.meter.toLowerCase().replace(/_/g, ' ');
+      await this.emailService.send({
+        to: owner.email,
+        subject: `You've used ${Math.round((used / limit) * 100)}% of your ${meterLabel} limit`,
+        html: brandEmailShell({
+          title: 'Heads up — you are approaching a plan limit',
+          bodyHtml: `
+            <p style="margin:0 0 16px;font-size:15px;color:#334155;">
+              Your workspace has used <strong>${used.toLocaleString()}</strong> of
+              <strong>${limit.toLocaleString()}</strong> ${escapeHtml(meterLabel)} this period.
+            </p>
+            <p style="margin:0 0 24px;font-size:15px;color:#334155;">
+              When you reach 100%, new ${escapeHtml(meterLabel)} will be paused until your
+              period resets — upgrading lifts the limit immediately and nothing is ever lost.
+            </p>
+            ${brandEmailButton(this.upgradeUrl(), 'Review your plan')}`,
+        }),
+      });
+    } catch (err) {
+      this.logger.error(
+        `Soft-limit email failed for org ${organizationId}: ${err instanceof Error ? err.message : String(err)}`,
+        undefined,
+        'EntitlementsService',
+      );
+    }
   }
 }

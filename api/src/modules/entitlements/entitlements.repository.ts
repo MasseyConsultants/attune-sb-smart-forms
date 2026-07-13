@@ -105,4 +105,12 @@ export class EntitlementsRepository {
       where: { organizationId, isActive: true, deletedAt: null },
     });
   }
+
+  findOwnerEmail(organizationId: string): Promise<{ email: string } | null> {
+    return this.prisma.user.findFirst({
+      where: { organizationId, role: 'OWNER', isActive: true, deletedAt: null },
+      select: { email: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
 }
