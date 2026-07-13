@@ -25,6 +25,7 @@ import { LoggerModule } from './modules/common/logger/logger.module';
 import { HttpLoggerMiddleware } from './modules/common/middleware/http-logger.middleware';
 import { PrismaModule } from './modules/common/prisma/prisma.module';
 import { StorageModule } from './modules/common/storage/storage.module';
+import { DocumentFillsModule } from './modules/document-fills/document-fills.module';
 import { DocumentTemplatesModule } from './modules/document-templates/document-templates.module';
 import { EntitlementsGuard } from './modules/entitlements/entitlements.guard';
 import { EntitlementsModule } from './modules/entitlements/entitlements.module';
@@ -102,6 +103,7 @@ import { UsersModule } from './modules/users/users.module';
     FormsModule,
     SubmissionsModule,
     DocumentTemplatesModule,
+    DocumentFillsModule,
   ],
   providers: [
     // NestJS applies APP_FILTERs in reverse declaration order — the catch-all

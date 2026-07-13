@@ -29,6 +29,7 @@ const repository = {
   countActiveUsers: jest.fn(),
   countPublishedForms: jest.fn().mockResolvedValue(0),
   countUploadedTemplates: jest.fn().mockResolvedValue(0),
+  sumStorageBytes: jest.fn().mockResolvedValue(0),
   findOwnerEmail: jest.fn().mockResolvedValue({ email: 'owner@example.com' }),
 };
 
@@ -156,7 +157,8 @@ describe('EntitlementsService hard limits — every plan × every periodic meter
 
   it('STORAGE_BYTES is non-periodic: denial has no resetsAt', async () => {
     mockPlan('solo');
-    mockUsed(PLAN_ENTITLEMENTS.solo.limits.storageBytes);
+    // Storage usage comes from live blob sums (S6), not the counter table.
+    repository.sumStorageBytes.mockResolvedValue(PLAN_ENTITLEMENTS.solo.limits.storageBytes);
     try {
       await service.assertMeterAvailable(ORG, Meter.STORAGE_BYTES);
       fail('expected EntitlementExceededException');

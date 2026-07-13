@@ -159,8 +159,14 @@ export class EntitlementsService {
     const cacheKey = this.usageCacheKey(organizationId, meter, periodStart);
     let used = await this.cache.get<number>(cacheKey);
     if (used === null) {
-      const counter = await this.repository.findCounter(organizationId, meter, periodStart);
-      used = counter ? Number(counter.used) : 0;
+      if (meter === Meter.STORAGE_BYTES) {
+        // Storage is a live sum of blob sizes, not a counter — deletes reclaim
+        // space immediately without a reconciliation job.
+        used = await this.repository.sumStorageBytes(organizationId);
+      } else {
+        const counter = await this.repository.findCounter(organizationId, meter, periodStart);
+        used = counter ? Number(counter.used) : 0;
+      }
       await this.cache.set(cacheKey, used, USAGE_CACHE_TTL_SECONDS);
     }
 

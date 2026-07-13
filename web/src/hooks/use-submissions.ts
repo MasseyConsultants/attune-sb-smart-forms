@@ -24,6 +24,8 @@ export interface SubmissionListItem {
   readonly status: SubmissionStatusValue;
   readonly submittedAt: string | null;
   readonly createdAt: string;
+  /** True when a SmartMapper filled PDF exists for download. */
+  readonly hasFilledDocument: boolean;
 }
 
 export interface PaginatedSubmissions {
@@ -70,4 +72,9 @@ export function useDeleteSubmission(formId: string) {
 
 export function exportUrl(formId: string, format: 'csv' | 'xlsx'): string {
   return `/api/forms/${formId}/submissions/export?format=${format}`;
+}
+
+/** Download URL for the SmartMapper-filled PDF of a submission. */
+export function filledDocumentUrl(submissionId: string): string {
+  return `/api/submissions/${submissionId}/document`;
 }

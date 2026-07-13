@@ -37,6 +37,7 @@ import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { Public } from '@/modules/auth/decorators/public.decorator';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '@/modules/auth/strategies/jwt.strategy';
+import { DocumentFillsService } from '@/modules/document-fills/document-fills.service';
 
 @ApiTags('Public Forms')
 @Controller('public/forms')
@@ -69,7 +70,10 @@ export class PublicSubmissionsController {
 @ApiTags('Submissions')
 @Controller()
 export class SubmissionsController {
-  constructor(private readonly submissionsService: SubmissionsService) {}
+  constructor(
+    private readonly submissionsService: SubmissionsService,
+    private readonly documentFills: DocumentFillsService,
+  ) {}
 
   @Get('forms/:formId/submissions')
   @ApiOperation({ summary: 'List submissions for a form (quarantined rows counted, not shown)' })
@@ -118,6 +122,22 @@ export class SubmissionsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<SubmissionDto> {
     return this.submissionsService.findOne(id, user);
+  }
+
+  @Get('submissions/:id/document')
+  @ApiOperation({ summary: 'Download the SmartMapper-filled PDF for a submission' })
+  async downloadFilledDocument(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { buffer, filename } = await this.documentFills.getFilledPdf(id, user);
+    res
+      .set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      })
+      .send(buffer);
   }
 
   @Delete('submissions/:id')

@@ -285,6 +285,7 @@ export class LifecycleService {
     // Blobs first — deletePrefix is idempotent, so a re-run after a partial
     // failure converges.
     await this.storage.deletePrefix(`document-templates/${organizationId}`);
+    await this.storage.deletePrefix(`document-fills/${organizationId}`);
 
     const hardDeleteAt = new Date(now.getTime() + HARD_DELETE_DELAY_DAYS * DAY_MS);
     await this.repository.softDeleteOrgData(organizationId, now, hardDeleteAt);

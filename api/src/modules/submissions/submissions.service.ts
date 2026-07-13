@@ -27,6 +27,7 @@ import { SubmissionsRepository } from './submissions.repository';
 
 import type { AuthenticatedUser } from '@/modules/auth/strategies/jwt.strategy';
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
+import { DocumentFillsService } from '@/modules/document-fills/document-fills.service';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
 import { FormsRepository } from '@/modules/forms/forms.repository';
 
@@ -38,6 +39,8 @@ export interface SubmissionDto {
   readonly status: SubmissionStatus;
   readonly submittedAt: Date | null;
   readonly createdAt: Date;
+  /** True when a SmartMapper filled PDF exists for download. */
+  readonly hasFilledDocument: boolean;
 }
 
 export interface PaginatedSubmissionDtos {
@@ -72,6 +75,7 @@ function toDto(submission: Submission): SubmissionDto {
     status: submission.status,
     submittedAt: submission.submittedAt,
     createdAt: submission.createdAt,
+    hasFilledDocument: submission.filledDocumentKey !== null,
   };
 }
 
@@ -81,6 +85,7 @@ export class SubmissionsService {
     private readonly repository: SubmissionsRepository,
     private readonly formsRepository: FormsRepository,
     private readonly entitlements: EntitlementsService,
+    private readonly documentFills: DocumentFillsService,
     private readonly logger: SecureLoggerService,
   ) {}
 
@@ -168,6 +173,16 @@ export class SubmissionsService {
         `Submission ${submission.id} quarantined OVER_LIMIT for org ${organizationId} (${meter.used}/${meter.limit})`,
         'SubmissionsService',
       );
+    } else {
+      // SmartMapper fill (no-op unless the form has a mapped READY template).
+      // Runs AFTER the row is stored and never throws — a fill problem can
+      // never lose a submission. Quarantined rows are not filled.
+      await this.documentFills.fillForSubmission({
+        submissionId: submission.id,
+        formId: target.form.id,
+        organizationId,
+        data,
+      });
     }
 
     return { id: submission.id };

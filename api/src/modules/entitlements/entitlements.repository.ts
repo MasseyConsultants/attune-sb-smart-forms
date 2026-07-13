@@ -120,6 +120,25 @@ export class EntitlementsRepository {
     });
   }
 
+  /**
+   * Live blob usage backing the STORAGE_BYTES meter: template uploads plus
+   * generated document fills. Live sums (not counter writes) so deletes
+   * reclaim space with no reconciliation job.
+   */
+  async sumStorageBytes(organizationId: string): Promise<number> {
+    const [templates, fills] = await this.prisma.$transaction([
+      this.prisma.documentTemplate.aggregate({
+        where: { organizationId, deletedAt: null },
+        _sum: { sizeBytes: true },
+      }),
+      this.prisma.submission.aggregate({
+        where: { organizationId, deletedAt: null },
+        _sum: { filledDocumentBytes: true },
+      }),
+    ]);
+    return (templates._sum.sizeBytes ?? 0) + (fills._sum.filledDocumentBytes ?? 0);
+  }
+
   findOwnerEmail(organizationId: string): Promise<{ email: string } | null> {
     return this.prisma.user.findFirst({
       where: { organizationId, role: 'OWNER', isActive: true, deletedAt: null },

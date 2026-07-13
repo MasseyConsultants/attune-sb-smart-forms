@@ -6,10 +6,11 @@ import { PublicSubmissionsController, SubmissionsController } from './submission
 import { SubmissionsRepository } from './submissions.repository';
 import { SubmissionsService } from './submissions.service';
 
+import { DocumentFillsModule } from '@/modules/document-fills/document-fills.module';
 import { FormsModule } from '@/modules/forms/forms.module';
 
 @Module({
-  imports: [FormsModule],
+  imports: [FormsModule, DocumentFillsModule],
   controllers: [PublicSubmissionsController, SubmissionsController],
   providers: [SubmissionsRepository, SubmissionsService],
   exports: [SubmissionsService],

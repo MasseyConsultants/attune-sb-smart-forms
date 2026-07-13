@@ -5,7 +5,7 @@
 
 'use client';
 
-import { ArrowLeft, ChevronDown, ChevronRight, Download, Inbox } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Download, FileText, Inbox } from 'lucide-react';
 import Link from 'next/link';
 import { Fragment, useMemo, useState } from 'react';
 
@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useForm } from '@/hooks/use-forms';
 import {
   exportUrl,
+  filledDocumentUrl,
   useDeleteSubmission,
   useSubmissionsList,
   type SubmissionListItem,
@@ -82,6 +83,20 @@ function SubmissionRow({
         ))}
         <td className="px-3 py-2.5 text-sm text-muted-foreground">v{submission.formVersion}</td>
         <td className="px-3 py-2.5 text-right">
+          {submission.hasFilledDocument && (
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <a href={filledDocumentUrl(submission.id)} download title="Download filled PDF">
+                <FileText className="h-4 w-4" />
+                PDF
+              </a>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
