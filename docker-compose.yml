@@ -1,0 +1,56 @@
+# =============================================================================
+# attune-sb-smart-forms — Docker Compose (Development)
+# Author: Robert Massey
+# Usage: docker compose up -d
+# Runs PostgreSQL 16 + Redis 7 locally. The api/web run on the host via pnpm dev.
+# =============================================================================
+
+services:
+  # --- PostgreSQL 16 (primary datastore) ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: attune-sb-postgres
+    restart: unless-stopped
+    ports:
+      - '5434:5432'
+    environment:
+      POSTGRES_USER: attune
+      POSTGRES_PASSWORD: attune_dev_password
+      POSTGRES_DB: attune_sb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U attune -d attune_sb']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Redis 7 (BullMQ, rate limiting, entitlement counter cache) ---
+  redis:
+    image: redis:7-alpine
+    container_name: attune-sb-redis
+    restart: unless-stopped
+    ports:
+      - '6382:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Mailpit (local email testing; web UI at http://localhost:8026) ---
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: attune-sb-mailpit
+    restart: unless-stopped
+    ports:
+      - '8026:8025' # Web UI
+      - '1026:1025' # SMTP
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

@@ -1,0 +1,50 @@
+{
+  "name": "attune-sb-smart-forms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-serve SaaS forms + documents + workflow platform for small businesses",
+  "author": "Robert Massey <robert@attune.it>",
+  "copyright": "© 2026 Attune IT LLC. All rights reserved.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:coverage": "turbo test:coverage",
+    "clean": "turbo clean",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "db:migrate": "turbo db:migrate --filter=attune-sb-api",
+    "db:generate": "turbo db:generate --filter=attune-sb-api",
+    "db:reset": "cd api && pnpm prisma migrate reset",
+    "db:studio": "cd api && pnpm prisma studio",
+    "db:seed": "cd api && pnpm seed",
+    "prepare": "husky || true",
+    "postinstall": "turbo db:generate"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.2.0",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "prettier --write"
+    ],
+    "*.{json,md,css,yaml,yml}": [
+      "prettier --write"
+    ]
+  }
+}

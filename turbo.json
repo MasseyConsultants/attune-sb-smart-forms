@@ -1,0 +1,57 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "globalEnv": ["NODE_ENV", "DATABASE_URL", "JWT_SECRET", "ENCRYPTION_KEY"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": ["DATABASE_URL", "NEXT_PUBLIC_API_URL"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "outputs": []
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "env": [
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "JWT_REFRESH_SECRET",
+        "JWT_ACCESS_TTL",
+        "JWT_REFRESH_TTL",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "ENCRYPTION_KEY"
+      ]
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "env": ["DATABASE_URL", "JWT_SECRET", "ENCRYPTION_KEY"]
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "clean": {
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "db:generate": {
+      "cache": true,
+      "dependsOn": []
+    }
+  }
+}
