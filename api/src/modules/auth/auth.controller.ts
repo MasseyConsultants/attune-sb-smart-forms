@@ -20,8 +20,12 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignupDto } from './dto/signup.dto';
 import type { AuthenticatedUser } from './strategies/jwt.strategy';
 
+import { AllowReadOnly } from '@/modules/lifecycle/decorators/allow-read-only.decorator';
+
 @ApiTags('Auth')
 @Controller('auth')
+// Read-only orgs must still log in/out, refresh, and manage passwords.
+@AllowReadOnly()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

@@ -19,9 +19,12 @@ import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { Roles } from '@/modules/auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '@/modules/auth/strategies/jwt.strategy';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
+import { AllowReadOnly } from '@/modules/lifecycle/decorators/allow-read-only.decorator';
 
 @ApiTags('Billing')
 @Controller('billing')
+// Read-only orgs must reach checkout/portal — resubscribing is how they restore.
+@AllowReadOnly()
 export class BillingController {
   constructor(
     private readonly billingService: BillingService,

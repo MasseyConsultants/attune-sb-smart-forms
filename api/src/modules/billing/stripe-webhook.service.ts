@@ -15,6 +15,7 @@ import { StripeClientService } from './stripe-client.service';
 
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
+import { LifecycleService } from '@/modules/lifecycle/lifecycle.service';
 
 const CONTEXT = 'StripeWebhookService';
 
@@ -24,6 +25,7 @@ export class StripeWebhookService {
     private readonly repository: BillingRepository,
     private readonly stripe: StripeClientService,
     private readonly entitlements: EntitlementsService,
+    private readonly lifecycle: LifecycleService,
     private readonly logger: SecureLoggerService,
   ) {}
 
@@ -109,6 +111,8 @@ export class StripeWebhookService {
     });
     await this.entitlements.invalidate(organizationId);
     await this.recordPaymentFingerprint(organizationId, remote);
+    // Resubscribe path: an expired-trial/canceled org gets instant full restore.
+    await this.lifecycle.restoreIfReadOnly(organizationId, 'checkout-resubscribe');
     this.logger.log(`Org ${organizationId} converted to ${planId} via checkout`, CONTEXT);
   }
 
@@ -188,6 +192,8 @@ export class StripeWebhookService {
       pastDueSince: null,
     });
     await this.entitlements.invalidate(local.organizationId);
+    // A paid invoice on a read-only org (dunning recovery/resubscribe) restores it.
+    await this.lifecycle.restoreIfReadOnly(local.organizationId, 'invoice-paid');
   }
 
   // --- Helpers ---

@@ -3,8 +3,9 @@
 // Guard execution order (declaration order): JWT → Roles → OrgThrottler.
 // Entitlements guard slots in between Roles and OrgThrottler in S1.
 
+import { BullModule } from '@nestjs/bullmq';
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 
@@ -27,6 +28,8 @@ import { EntitlementsGuard } from './modules/entitlements/entitlements.guard';
 import { EntitlementsModule } from './modules/entitlements/entitlements.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
+import { LifecycleModule } from './modules/lifecycle/lifecycle.module';
+import { ReadOnlyGuard } from './modules/lifecycle/read-only.guard';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { UsersModule } from './modules/users/users.module';
@@ -41,6 +44,19 @@ import { UsersModule } from './modules/users/users.module';
         allowUnknown: true,
         abortEarly: false,
       },
+    }),
+
+    // BullMQ root connection — the lifecycle sweep (and later doc-gen/workflow
+    // queues) share this Redis connection config.
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.get<string>('REDIS_HOST', 'localhost'),
+          port: config.get<number>('REDIS_PORT', 6379),
+          password: config.get<string>('REDIS_PASSWORD') || undefined,
+        },
+      }),
     }),
 
     ThrottlerModule.forRoot([
@@ -76,6 +92,7 @@ import { UsersModule } from './modules/users/users.module';
     OrganizationsModule,
     InvitationsModule,
     EntitlementsModule,
+    LifecycleModule,
     BillingModule,
   ],
   providers: [
@@ -87,10 +104,12 @@ import { UsersModule } from './modules/users/users.module';
     // Guard execution order (declaration order):
     //   1. JwtAuthGuard      — validates bearer token, populates request.user (@Public() opts out)
     //   2. RolesGuard        — enforces @Roles() hierarchy
-    //   3. EntitlementsGuard — enforces @RequireEntitlement() boolean plan gates
-    //   4. OrgThrottlerGuard — per-org rate limiting
+    //   3. ReadOnlyGuard    — blocks mutations for read-only orgs (@AllowReadOnly() opts out)
+    //   4. EntitlementsGuard — enforces @RequireEntitlement() boolean plan gates
+    //   5. OrgThrottlerGuard — per-org rate limiting
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ReadOnlyGuard },
     { provide: APP_GUARD, useClass: EntitlementsGuard },
     { provide: APP_GUARD, useClass: OrgThrottlerGuard },
   ],

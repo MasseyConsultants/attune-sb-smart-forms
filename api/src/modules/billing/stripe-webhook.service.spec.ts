@@ -39,6 +39,7 @@ const stripe = {
 };
 
 const entitlements = { invalidate: jest.fn() };
+const lifecycle = { restoreIfReadOnly: jest.fn().mockResolvedValue(false) };
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 const LOCAL_SUB = {
@@ -56,6 +57,7 @@ function makeService(): StripeWebhookService {
     repository as any,
     stripe as any,
     entitlements as any,
+    lifecycle as any,
     logger as any,
   );
 }
