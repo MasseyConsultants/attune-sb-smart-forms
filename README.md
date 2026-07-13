@@ -1,113 +1,81 @@
-# SMB Edition (`attune-sb-smart-forms`) — Repo Seed
+# attune-sb-smart-forms
 
-> **These documents belong to the NEW small-business product, not the enterprise
-> edition.** They live here only as the staging area until the new repository
-> exists. Nothing in this folder describes or changes `attune-smart-forms`.
->
-> **Author:** Robert Massey | **Created:** 2026-07-11 | **Tracked as:** BACKLOG-114
-> **Market research:** July 2026 (Jotform, Cognito Forms, Typeform, Formstack, GoCanvas)
+> Author: Robert Massey | © 2026 Attune IT LLC
+> Self-serve, subscription-based forms + documents + workflow SaaS for small
+> businesses. Derivative of the enterprise `attune-smart-forms` platform.
 
-## What is this?
+**Status:** Phase 2 complete (v0.1.0) — self-serve signup with 14-day trial,
+entitlement/metering paywall, Stripe billing scaffolding, org data lifecycle,
+form builder with 30 field types, versioned publishing, public fill pages,
+submissions with quarantine-not-drop metering, CSV/Excel export.
 
-The founding context for the AI engineering agent that will build
-**attune-sb-smart-forms** — a self-serve, subscription-based (Solo $19 / Growth
-$49 / Business $99) forms + documents + workflow SaaS for small businesses,
-derived from this enterprise codebase.
+## Stack
 
-## `repo-seed/` — copy its CONTENTS into the new repo root
+pnpm + Turborepo monorepo: NestJS 10 API (`api/`), Next.js 15 web (`web/`),
+PostgreSQL 16 + Redis 7 (Docker), Prisma, Stripe, BullMQ.
 
-The `repo-seed/` folder mirrors the new repository's layout exactly. Every file
-is already in its final location, including the `.cursorrules` (with the dot)
-and the logo assets:
+| Package                  | Purpose                                                                  |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `api/`                   | REST API — auth, entitlements, billing, forms, submissions               |
+| `web/`                   | Marketing + auth + dashboard + builder + public fill pages               |
+| `packages/shared-types`  | API contracts, enums, `PLAN_ENTITLEMENTS` (paywall source of truth)      |
+| `packages/form-engine`   | Form renderer + conditional logic / validation (`./logic` is React-free) |
+| `packages/eslint-config` | Shared lint rules                                                        |
 
-```
-repo-seed/
-├── .cursorrules                        # agent standing orders (Cursor auto-loads)
-├── planning/
-│   ├── MASTER_PLAN.md                  # vision, pricing tiers, phases, carry-over manifest
-│   ├── SPRINT_00.md                    # first sprint task list
-│   └── BACKLOG.md                      # pre-seeded deferred items (SB-001…SB-013)
-├── docs/
-│   ├── PRICING_AND_ENTITLEMENTS.md     # paywall, metering, purge lifecycle spec
-│   └── MARKET_RESEARCH.md              # July 2026 competitor snapshot
-├── scorecard/
-│   └── PROJECT_SCORECARD.md            # living status (Phase P0, Sprint 0)
-└── web/
-    └── public/                         # brand logo assets (copied from enterprise)
-        ├── attune-logo.svg             # white wordmark — orange hero / dark panels
-        ├── attune-logo-dark.svg        # dark wordmark — light backgrounds
-        ├── attune-logo-sidebar.svg     # light wordmark variant
-        ├── attune-logo.png             # raster fallback
-        ├── attune-it-logo.png          # compact logo — forgot/reset pages
-        ├── attune-icon.png             # favicon / touch icon
-        └── ait-logo.png                # AIT mark — email branding default
-```
+## Run it locally
 
-## Setup steps
-
-1. Create the new project and copy the seed in (PowerShell):
+Prereqs: Node ≥ 20, pnpm ≥ 8, Docker Desktop.
 
 ```powershell
-cd "a:\Attune IT LLC\WebProjects"
-mkdir attune-sb-smart-forms
-Copy-Item -Recurse -Force "attune-smart-forms\docs\smb-edition\repo-seed\*" "attune-sb-smart-forms\"
-Copy-Item "attune-smart-forms\docs\smb-edition\repo-seed\.cursorrules" "attune-sb-smart-forms\"
-cd attune-sb-smart-forms
-git init
+# 1. Infrastructure (Postgres on 5434, Redis on 6382, Mailpit UI on 8025)
+docker compose up -d
+
+# 2. Environment
+Copy-Item .env.example .env        # defaults work for local dev
+Copy-Item .env.example api\.env    # api reads its own copy
+
+# 3. Install, migrate, seed
+pnpm install
+pnpm db:migrate
+pnpm db:seed
+
+# 4. Run everything (API :3001, web :3000)
+pnpm dev
 ```
 
-(The second `Copy-Item` is needed because `*` does not match the hidden-style
-dotfile. Verify with `Get-ChildItem -Force` that `.cursorrules` is present.)
+Swagger lives at `http://localhost:3001/api/docs` in dev.
 
-2. Open the new folder in Cursor; add this enterprise repo as a second
-   workspace folder (File → Add Folder to Workspace) so the agent can port code.
-3. Prereqs: Node ≥ 20, pnpm 8.15, Docker Desktop (PostgreSQL 16 + Redis 7).
-   Stripe test account not needed until Phase 1.
-4. Kick off the agent with:
+### Seed credentials
 
-```
-Read .cursorrules, planning/MASTER_PLAN.md, docs/PRICING_AND_ENTITLEMENTS.md,
-and planning/SPRINT_00.md in full before doing anything.
+| Account        | Email                        | Password              |
+| -------------- | ---------------------------- | --------------------- |
+| Platform admin | `admin@attuneitus.com`       | `AttunePlatform#2026` |
+| Demo org owner | `owner@demo.attune-sb.local` | `DemoOwnerPass#2026`  |
 
-We are beginning Sprint 0. Execute the Sprint 0 task list exactly as written —
-do not build ahead into later phases.
+The demo org starts on an active 14-day trial (2 published forms,
+50 submissions/mo, 10 document fills/mo). Or sign up fresh at
+`http://localhost:3000/signup` — no credit card required.
 
-The enterprise codebase to port from is at:
-a:\Attune IT LLC\WebProjects\attune-smart-forms
-Consult its packages/form-engine, packages/shared-types,
-api/src/modules/common, and the branding sources listed in MASTER_PLAN.md §6a
-when porting the items named in the Carry-over Manifest (§6). Fix the known
-shared-types drift and the duplicated brand constants at the border as
-documented. Do not import the debt listed in §6. Logo assets are already in
-web/public/.
+### Stripe (optional for local dev)
 
-Work task by task. After each task: run lint/typecheck/tests, update
-scorecard/PROJECT_SCORECARD.md, and commit with a Conventional Commit message.
-Stop and ask me before making any decision the plan leaves open.
+The trial path works with no Stripe keys; checkout/portal endpoints return
+`BILLING_NOT_CONFIGURED` (503) until keys exist. To test paid flows, put test
+keys in `.env` (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, price IDs) and
+forward webhooks: `stripe listen --forward-to localhost:3001/api/v1/webhooks/stripe`.
+
+## Quality gates
+
+```powershell
+pnpm lint ; pnpm typecheck ; pnpm test
 ```
 
-## Working cadence after Sprint 0
+CI (GitHub Actions) runs all three plus commitlint (Conventional Commits) on
+every PR. Coverage targets: 80% API / 70% web.
 
-1. One sprint per push — agent writes the retro + drafts the next sprint file;
-   you review it before saying "begin".
-2. Verify each sprint's acceptance line yourself before accepting "done".
-3. New ideas go through the new repo's `planning/BACKLOG.md`, never straight
-   into the current sprint.
-4. At Phase 1: Stripe test keys in `.env` (never committed), Stripe CLI
-   webhook forwarding for local testing.
+## Where things are decided
 
-## Related enterprise documents (links valid in THIS repo only)
-
-- [BACKLOG.md — BACKLOG-114 tracks this spin-off](../../planning/BACKLOG.md)
-- [Enterprise MASTER_PLAN.md](../../planning/MASTER_PLAN.md)
-- [Enterprise PROJECT_SCORECARD.md](../../scorecard/PROJECT_SCORECARD.md)
-- [INFRASTRUCTURE_SCALING_PLAN.md — hosting/cost model to adapt](../INFRASTRUCTURE_SCALING_PLAN.md)
-- [ADR directory](../ADR/)
-- Branding sources (MASTER_PLAN §6a): [globals.css](../../admin-portal/src/app/globals.css),
-  [theme-provider.tsx](../../admin-portal/src/providers/theme-provider.tsx),
-  [login page (hero + vector shapes)](<../../admin-portal/src/app/(auth)/login/page.tsx>),
-  [tailwind.config.ts](../../admin-portal/tailwind.config.ts)
-- Flagship system sources: [form-engine](../../packages/form-engine/),
-  [shared-types](../../packages/shared-types/),
-  [document-templates (SmartMapper)](../../api/src/modules/document-templates/),
-  [workflows (orchestrator + adapters)](../../api/src/modules/workflows/)
+- `planning/MASTER_PLAN.md` — vision, pricing, phase roadmap
+- `planning/SPRINT_XX.md` — per-sprint scope + retro
+- `docs/PRICING_AND_ENTITLEMENTS.md` — paywall + data lifecycle spec
+- `docs/ADR/` — dependency and architecture decisions
+- `scorecard/PROJECT_SCORECARD.md` — living status

@@ -25,9 +25,9 @@ interface PublicForm {
 async function fetchPublicForm(slug: string): Promise<PublicForm | null> {
   try {
     const res = await fetch(`${getApiUrl()}/public/forms/${encodeURIComponent(slug)}`, {
-      // Fill pages must reflect a republish quickly, but don't need to hit the
-      // API on every visitor: 30 s revalidation window.
-      next: { revalidate: 30 },
+      // No caching: unpublish must 404 the page immediately (Phase 2 acceptance),
+      // and republished schemas must be live on the next visit.
+      cache: 'no-store',
     });
     if (!res.ok) {
       return null;

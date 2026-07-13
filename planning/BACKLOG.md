@@ -21,8 +21,13 @@
 | SB-011 | P3       | Affiliate/referral program                               | Growth                        | Post-launch      | —                                           |
 | SB-012 | P3       | Annual-plan proration edge cases                         | Billing                       | v1.1             | Stripe Portal covers basics at v1           |
 | SB-013 | P3       | EU data residency                                        | Compliance                    | On demand        | —                                           |
-| SB-014 | P1       | Downgrade UX: choose which forms stay live over new cap  | SPRINT_02 task 4 (deferred)   | S4               | Needs forms to exist; API rule ships in S3  |
-| SB-015 | P1       | Export-all entry point (org data takeout)                | SPRINT_02 task 4 (deferred)   | S4               | Pairs with submissions CSV/Excel export     |
+
+## Completed
+
+| ID     | Title                                                   | Shipped | Notes                                          |
+| ------ | ------------------------------------------------------- | ------- | ---------------------------------------------- |
+| SB-014 | Downgrade UX: choose which forms stay live over new cap | S4      | Over-cap picker card on /billing               |
+| SB-015 | Export-all entry point (org data takeout)               | S4      | "Export your data" card on /billing, read-only |
 
 ## Rules
 

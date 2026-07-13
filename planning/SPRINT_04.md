@@ -56,3 +56,50 @@ env-gated option later).
 - Unpublishing a form 404s its public page immediately
 - Full Phase 2 click-through checklist passes: signup → trial → build →
   publish → public fill → data view → export → metering visible
+
+---
+
+## Retrospective (2026-07-13)
+
+### Delivered
+
+All four tasks plus both backlog items (SB-014, SB-015). Phase 2 is closed.
+
+1. **Submissions API** — `Submission` model + migration; public intake with
+   honeypot (fake 201, nothing stored), per-IP throttle (5/s, 30/min),
+   snapshot validation via `@attune-sb/form-engine/logic` (new React-free
+   subpath export), conditional-visibility-aware required checks, unknown-key
+   stripping; OVER_LIMIT quarantine with lazy release on headroom; CSV/XLSX
+   export (exceljs, ADR-0002); 16 service specs.
+2. **Public fill pages** — `/f/[slug]` SSR (`no-store` so unpublish 404s
+   immediately), intake posts directly from the browser so the throttle sees
+   real visitor IPs, plan-gated "Powered by" footer, deliberately vague 404.
+3. **Data views** — schema-derived columns (capped at 4, detail expand shows
+   all), pagination, quarantine banner + upgrade nudge, delete, CSV/Excel
+   download buttons; submission counts now live on the forms list.
+4. **SB-014/SB-015** — over-cap downgrade picker and export-all takeout card
+   on `/billing` (export stays available read-only by design).
+
+### What went well
+
+- The `./logic` subpath export (with `typesVersions` for the API's classic
+  node resolution) cleanly split form validation from React — the API never
+  bundles DOM code.
+- "Never lose customer data" fell out of the design naturally: intake meters
+  and stores in one path; quarantine is just a status, so release is a bulk
+  status flip with no re-metering.
+
+### What bit us
+
+- Killing the API dev server for `prisma generate` (Windows DLL lock) left no
+  server running for the live drill — restart is part of the routine now.
+- Auto-review blocked authenticated smoke tests (login with seed credentials
+  - data export), so list/export endpoints are verified by unit tests + the
+    manual checklist rather than a scripted drill.
+- First commit subject exceeded commitlint's length cap; shortened.
+
+### Deferred
+
+- OVER_LIMIT end-to-end drill (needs 50 seeded rows) — manual checklist item.
+- CAPTCHA option, scheduled exports, submission status workflow (IN_REVIEW /
+  APPROVED / REJECTED are modeled but unused until workflows in P4).

@@ -5,8 +5,9 @@
 
 ## Current Status
 
-- **Phase:** P2 Form Builder (S3 complete 2026-07-13; S4 next)
-- **Current sprint:** Sprint 4 (`planning/SPRINT_04.md`)
+- **Phase:** P2 Form Builder ✅ COMPLETE (S4 done 2026-07-13) — Phase 2 stop
+  condition reached; manual click-through checklist delivered
+- **Current sprint:** Sprint 5 next (`planning/SPRINT_05.md`) — P3 SmartMapper
 - **Version:** 0.1.0
 
 ## Phase Progress
@@ -15,7 +16,7 @@
 | ------------------- | ------- | ----------- | ---------------------------------------------------------------------- |
 | P0 Foundation       | S0      | ✅ Complete | 2026-07-12 — auth, branding, CI, seed green                            |
 | P1 Paywall Core     | S1–S2   | ✅ Complete | 2026-07-13 — entitlements, Stripe, lifecycle FSM, purge sweep, plan UI |
-| P2 Form Builder     | S3–S4   | In progress | S3 done (engine, forms API, builder); S4: public pages + submissions   |
+| P2 Form Builder     | S3–S4   | ✅ Complete | 2026-07-13 — engine, forms API, builder, public fill, submissions      |
 | P3 SmartMapper      | S5–S6   | Not started | —                                                                      |
 | P4 Workflow Builder | S7–S8   | Not started | —                                                                      |
 | P5 Library + Polish | S9      | Not started | —                                                                      |
@@ -111,13 +112,38 @@
   → publish-at-cap upgrade prompt) — pending manual pass at Phase 2 close
 - dnd-kit dependency recorded in `docs/ADR/0001-dnd-kit-for-form-builder.md`
 
+## Sprint 4 Task Status
+
+| #   | Task                        | Status  | Notes                                                                    |
+| --- | --------------------------- | ------- | ------------------------------------------------------------------------ |
+| 1   | Submissions API module      | ✅ Done | Public intake w/ honeypot + IP throttle; OVER_LIMIT quarantine; metering |
+| 2   | Public fill pages /f/[slug] | ✅ Done | SSR no-store, mobile card layout, plan-gated "Powered by", vague 404     |
+| 3   | Data views + export         | ✅ Done | Schema-derived table, detail expand, CSV/XLSX (exceljs, ADR-0002)        |
+| 4   | Submission counts on list   | ✅ Done | `_count` aggregate replaces S3 placeholder; links to data view           |
+| 5   | SB-014 downgrade picker     | ✅ Done | Billing card appears when published > cap; org chooses what stays live   |
+| 6   | SB-015 export-all           | ✅ Done | "Export your data" takeout card on /billing; works in read-only mode     |
+| 7   | Phase 2 close               | ✅ Done | Run instructions + seed credentials + click-through checklist delivered  |
+
+## Sprint 4 Verification (2026-07-13)
+
+- 170 API tests across 10 suites; 35 web tests across 7 suites — all green
+- Live intake drill (public, unauthenticated): valid submission stored
+  `SUBMITTED` + metered; missing-required rejected 422 with field errors;
+  honeypot hit returned fake 201 id and stored NOTHING
+- Browser drill: `/f/qejfjr3fw8` SSR-rendered with "Powered by" footer,
+  filled + submitted → branded thank-you screen; unknown slug → 404 page
+- Quarantine (at-cap intake → OVER_LIMIT → lazy release on headroom) covered
+  by unit tests; end-to-end pass is on the manual checklist (needs 50 rows)
+- Form-engine `./logic` subpath export lets the API validate against the
+  published snapshot without pulling React into the Nest build
+
 ## Quality Gates
 
-| Gate              | Target | Current                                                           |
-| ----------------- | ------ | ----------------------------------------------------------------- |
-| API test coverage | 80%    | Improving — 9 suites / 154 tests; paywall + lifecycle + forms FSM |
-| Web test coverage | 70%    | Growing — 6 suites / 32 tests (+ 42 engine tests in form-engine)  |
-| CI status         | Green  | Workflow added S0; validating on pushes                           |
+| Gate              | Target | Current                                                                 |
+| ----------------- | ------ | ----------------------------------------------------------------------- |
+| API test coverage | 80%    | Improving — 10 suites / 170 tests; paywall + lifecycle + forms + intake |
+| Web test coverage | 70%    | Growing — 7 suites / 35 tests (+ 42 engine tests in form-engine)        |
+| CI status         | Green  | Workflow added S0; validating on pushes                                 |
 
 ## Unplanned Items
 
