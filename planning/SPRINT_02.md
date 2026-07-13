@@ -58,3 +58,44 @@ Form engine port, forms API, builder UI — P2 starts in S3.
   `/billing/usage`; 80% ratio shows the soft banner
 - Reminder emails render the brand shell and fire on the correct schedule
 - Lifecycle + purge test matrix green in CI; web coverage > 0%
+
+---
+
+## Retro (closed 2026-07-13)
+
+**Delivered.** Tasks 1–3, 5, 6 complete; task 4 complete except two items that
+require forms to exist (deferred to S4 — see below). 130 API tests across 8
+suites + 18 web component tests across 4 suites.
+
+**Verified live**
+
+- Trial expiry sweep flipped a backdated org to `EXPIRED_TRIAL` same-day:
+  read-only set, purge scheduled +30d, T+0 reminder email sent
+- Mutating call on the read-only org returned `ORG_READ_ONLY`; GETs still work
+- SSR check: dashboard shows the read-only banner with the purge date;
+  `/billing` renders all three plan cards from PLAN_ENTITLEMENTS
+
+**What went well**
+
+- Latching reminders in `org.settings.lifecycleRemindersSent` (state key +
+  day offset) made the sweep naturally idempotent — double-runs send nothing.
+- The `@AllowReadOnly()` opt-out decorator kept the ReadOnlyGuard default-deny:
+  auth and billing routes opt out explicitly, everything else is protected by
+  default.
+- `next/jest` + testing-library setup was painless; component tests run in the
+  same `pnpm test` pipeline as the API.
+
+**What bit us**
+
+- The password policy correctly rejected a live-test signup whose password
+  contained the test user's name — test fixtures need policy-safe passwords.
+- Duplicate type name: `OrganizationSummary` already existed in auth.ts, so
+  the full org contract became `OrganizationProfile` in orgs.ts.
+
+**Deferred / notes**
+
+- Downgrade UX ("choose which forms stay live over the new cap") and the
+  export-all entry point need forms/submissions to exist — moved to S4
+  (SB-014, SB-015).
+- Live Stripe dunning email fires on webhook fixtures in tests; real-key
+  verification remains a manual step alongside checkout.

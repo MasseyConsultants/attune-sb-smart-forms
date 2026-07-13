@@ -5,8 +5,8 @@
 
 ## Current Status
 
-- **Phase:** P1 Paywall Core (S1 complete; S2 next)
-- **Current sprint:** Sprint 2 (`planning/SPRINT_02.md`)
+- **Phase:** P2 Form Builder (P1 complete 2026-07-13)
+- **Current sprint:** Sprint 3 (`planning/SPRINT_03.md`)
 - **Version:** 0.1.0
 
 ## Phase Progress
@@ -14,8 +14,8 @@
 | Phase               | Sprints | Status      | Notes                                                                  |
 | ------------------- | ------- | ----------- | ---------------------------------------------------------------------- |
 | P0 Foundation       | S0      | ✅ Complete | 2026-07-12 — auth, branding, CI, seed green                            |
-| P1 Paywall Core     | S1–S2   | In progress | S1 done 2026-07-12 (entitlements + Stripe); S2: lifecycle + plan pages |
-| P2 Form Builder     | S3–S4   | Not started | —                                                                      |
+| P1 Paywall Core     | S1–S2   | ✅ Complete | 2026-07-13 — entitlements, Stripe, lifecycle FSM, purge sweep, plan UI |
+| P2 Form Builder     | S3–S4   | Next        | S3: form-engine port, forms API, builder studio                        |
 | P3 SmartMapper      | S5–S6   | Not started | —                                                                      |
 | P4 Workflow Builder | S7–S8   | Not started | —                                                                      |
 | P5 Library + Polish | S9      | Not started | —                                                                      |
@@ -66,13 +66,35 @@
 - `/billing` page renders plan, usage meters with 80%/100% color thresholds,
   and checkout/portal actions (manual Stripe checkout verification pending keys)
 
+## Sprint 2 Task Status
+
+| #   | Task                       | Status    | Notes                                                                   |
+| --- | -------------------------- | --------- | ----------------------------------------------------------------------- |
+| 1   | Org lifecycle FSM          | ✅ Done   | EXPIRED_TRIAL/CANCELED/PURGE_PENDING/PURGED, ReadOnlyGuard, restore     |
+| 2   | Purge sweep (BullMQ daily) | ✅ Done   | Two-phase, idempotent, legal hold, tombstone, PurgeAuditLog             |
+| 3   | Reminder + warning emails  | ✅ Done   | Trial/cancel schedule, soft-limit 80% latch email, dunning first-notice |
+| 4   | Billing/plan pages + UI    | ✅ Done\* | Plan grid from PLAN_ENTITLEMENTS, meters, read-only banner; \*SB-014/15 |
+| 5   | Per-plan API throttling    | ✅ Done   | OrgThrottlerGuard reads apiRateLimitPerMin from plan snapshot           |
+| 6   | First web component tests  | ✅ Done   | 18 tests: MeterBar, UpgradeCta, ReadOnlyBanner, PlanGrid                |
+
+## Sprint 2 Verification (2026-07-13)
+
+- 130 API tests across 8 suites; 18 web tests across 4 suites — all green
+- Live drill: backdated trial → sweep → org `EXPIRED_TRIAL`, read-only flag
+  set, purge scheduled +30d, T+0 reminder email logged
+- Read-only org: `PATCH /organizations/me` → `ORG_READ_ONLY`; GET still 200
+- SSR check: dashboard renders the read-only banner + purge date; `/billing`
+  renders all three plan cards, meters, and current-plan state
+- Downgrade form-picker UX + export-all deferred to S4 (SB-014, SB-015 —
+  need forms/submissions to exist)
+
 ## Quality Gates
 
-| Gate              | Target | Current                                              |
-| ----------------- | ------ | ---------------------------------------------------- |
-| API test coverage | 80%    | Improving — 7 suites / 112 tests; paywall exhaustive |
-| Web test coverage | 70%    | 0% — first component tests due in S2                 |
-| CI status         | Green  | Workflow added S0; validating on pushes              |
+| Gate              | Target | Current                                                          |
+| ----------------- | ------ | ---------------------------------------------------------------- |
+| API test coverage | 80%    | Improving — 8 suites / 130 tests; paywall + lifecycle exhaustive |
+| Web test coverage | 70%    | Started — 4 suites / 18 tests (billing components)               |
+| CI status         | Green  | Workflow added S0; validating on pushes                          |
 
 ## Unplanned Items
 
