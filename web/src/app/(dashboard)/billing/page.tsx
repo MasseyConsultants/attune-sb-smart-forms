@@ -3,21 +3,25 @@
 // plan comparison grid. The upgrade URL in LIMIT_EXCEEDED responses points here.
 
 import { CalendarClock } from 'lucide-react';
-import type { SubscriptionSummary, UsageSummary } from '@attune-sb/shared-types';
+import type { Form, SubscriptionSummary, UsageSummary } from '@attune-sb/shared-types';
 import { PLAN_ENTITLEMENTS } from '@attune-sb/shared-types';
 
 import { apiGet } from '@/lib/api-server';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { DataTakeout } from '@/components/billing/data-takeout';
 import { MeterBar } from '@/components/billing/meter-bar';
+import { OverCapPicker } from '@/components/billing/over-cap-picker';
 import { PlanGrid } from '@/components/billing/plan-grid';
 import { BillingActions } from './billing-actions';
 
 export default async function BillingPage(): Promise<React.ReactElement> {
-  const [subscription, usage] = await Promise.all([
+  const [subscription, usage, formsPage] = await Promise.all([
     apiGet<SubscriptionSummary>('/billing/subscription'),
     apiGet<UsageSummary>('/billing/usage'),
+    apiGet<{ forms: Form[]; total: number }>('/forms?pageSize=100'),
   ]);
+  const forms = formsPage?.forms ?? [];
 
   const planName = subscription ? PLAN_ENTITLEMENTS[subscription.planId].displayName : '—';
 
@@ -60,6 +64,8 @@ export default async function BillingPage(): Promise<React.ReactElement> {
           <BillingActions isStripeManaged={subscription?.isStripeManaged ?? false} />
         </CardContent>
       </Card>
+
+      {usage && <OverCapPicker forms={forms} limit={usage.counted.activeForms.limit} />}
 
       <Card>
         <CardHeader>
@@ -111,6 +117,8 @@ export default async function BillingPage(): Promise<React.ReactElement> {
         <h2 className="mb-3 text-lg font-semibold text-foreground">Plans</h2>
         <PlanGrid currentPlanId={subscription?.planId ?? 'trial'} />
       </div>
+
+      <DataTakeout forms={forms} />
     </div>
   );
 }

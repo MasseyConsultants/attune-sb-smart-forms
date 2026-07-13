@@ -1,6 +1,6 @@
 // Author: Robert Massey | Created: 2026-07-13 | Module: Web / Forms List
 // Purpose: Client list of the org's forms with create, duplicate, and delete.
-// Submission counts arrive in S4 — the column renders a placeholder until then.
+// The submissions column links into each form's data view.
 
 'use client';
 
@@ -42,8 +42,13 @@ function FormRow({ form }: { readonly form: Form }): React.ReactElement {
         <Badge variant={STATUS_VARIANT[form.status]}>{form.status}</Badge>
       </td>
       <td className="px-4 py-3 text-sm text-muted-foreground">v{form.version}</td>
-      <td className="px-4 py-3 text-sm text-muted-foreground" title="Submissions arrive in S4">
-        —
+      <td className="px-4 py-3 text-sm">
+        <Link
+          href={`/forms/${form.id}/submissions`}
+          className="text-muted-foreground hover:text-primary hover:underline"
+        >
+          {form.submissionCount ?? 0}
+        </Link>
       </td>
       <td className="px-4 py-3 text-right">
         <Button
