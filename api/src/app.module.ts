@@ -11,6 +11,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { envValidationSchema } from './config/env.validation';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { BillingModule } from './modules/billing/billing.module';
 import { AppCacheModule } from './modules/common/cache/app-cache.module';
 import { EncryptionModule } from './modules/common/encryption/encryption.module';
 import {
@@ -22,6 +23,8 @@ import { RolesGuard } from './modules/common/guards/roles.guard';
 import { LoggerModule } from './modules/common/logger/logger.module';
 import { HttpLoggerMiddleware } from './modules/common/middleware/http-logger.middleware';
 import { PrismaModule } from './modules/common/prisma/prisma.module';
+import { EntitlementsGuard } from './modules/entitlements/entitlements.guard';
+import { EntitlementsModule } from './modules/entitlements/entitlements.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -72,6 +75,8 @@ import { UsersModule } from './modules/users/users.module';
     UsersModule,
     OrganizationsModule,
     InvitationsModule,
+    EntitlementsModule,
+    BillingModule,
   ],
   providers: [
     // NestJS applies APP_FILTERs in reverse declaration order — the catch-all
@@ -80,11 +85,13 @@ import { UsersModule } from './modules/users/users.module';
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
 
     // Guard execution order (declaration order):
-    //   1. JwtAuthGuard   — validates bearer token, populates request.user (@Public() opts out)
-    //   2. RolesGuard     — enforces @Roles() hierarchy
-    //   3. OrgThrottlerGuard — per-org rate limiting
+    //   1. JwtAuthGuard      — validates bearer token, populates request.user (@Public() opts out)
+    //   2. RolesGuard        — enforces @Roles() hierarchy
+    //   3. EntitlementsGuard — enforces @RequireEntitlement() boolean plan gates
+    //   4. OrgThrottlerGuard — per-org rate limiting
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: EntitlementsGuard },
     { provide: APP_GUARD, useClass: OrgThrottlerGuard },
   ],
 })

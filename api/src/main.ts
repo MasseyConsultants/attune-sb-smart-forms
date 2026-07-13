@@ -4,6 +4,8 @@
 // verify signatures on the raw request buffer before JSON parsing (S1).
 // Swagger is gated behind NODE_ENV !== 'production'.
 
+import type { IncomingMessage } from 'http';
+
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -21,7 +23,16 @@ async function bootstrap(): Promise<void> {
 
   // 10 MB body limit: public form submissions can carry base64 signatures/photos.
   // Registered AFTER NestFactory.create so they override the 100 kb defaults.
-  app.use(bodyParser.json({ limit: '10mb' }));
+  // The verify hook captures the raw buffer so the Stripe webhook controller can
+  // verify signatures (this parser runs before Nest's built-in rawBody parser).
+  app.use(
+    bodyParser.json({
+      limit: '10mb',
+      verify: (req: IncomingMessage & { rawBody?: Buffer }, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
   app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
   const config = app.get(ConfigService);

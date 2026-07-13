@@ -3,7 +3,8 @@
 // puts an OBJECT in the response body's `error` field, which used to hit
 // `.toUpperCase()` and throw, killing the process.
 
-import { ArgumentsHost, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import type { ArgumentsHost } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 
 import { HttpExceptionFilter } from './http-exception.filter';
 
