@@ -1,63 +1,17 @@
 // Author: Robert Massey | Created: 2026-07-12 | Module: Web / Billing
-// Purpose: S1 minimal billing page — current plan, live usage meters, and
-// checkout/portal actions. The upgrade URL in LIMIT_EXCEEDED responses points
-// here. Full plan comparison + downgrade flows land in S2.
+// Purpose: Billing & usage page — current plan, live usage meters, and the full
+// plan comparison grid. The upgrade URL in LIMIT_EXCEEDED responses points here.
 
 import { CalendarClock } from 'lucide-react';
 import type { SubscriptionSummary, UsageSummary } from '@attune-sb/shared-types';
+import { PLAN_ENTITLEMENTS } from '@attune-sb/shared-types';
 
 import { apiGet } from '@/lib/api-server';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { MeterBar } from '@/components/billing/meter-bar';
+import { PlanGrid } from '@/components/billing/plan-grid';
 import { BillingActions } from './billing-actions';
-
-const METER_LABELS: Record<string, string> = {
-  SUBMISSIONS: 'Form submissions',
-  DOC_FILLS: 'Document fills',
-  WORKFLOW_RUNS: 'Workflow runs',
-  EMAILS: 'Emails sent',
-  AI_CREDITS: 'AI credits',
-  STORAGE_BYTES: 'Storage',
-};
-
-function formatValue(meter: string, value: number): string {
-  if (meter === 'STORAGE_BYTES') {
-    const mb = value / (1024 * 1024);
-    return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
-  }
-  return value.toLocaleString();
-}
-
-function MeterBar({
-  label,
-  used,
-  limit,
-  ratio,
-  meter,
-}: {
-  label: string;
-  used: number;
-  limit: number;
-  ratio: number;
-  meter: string;
-}): React.ReactElement {
-  const pct = Math.min(100, Math.round(ratio * 100));
-  const barColor = ratio >= 1 ? 'bg-destructive' : ratio >= 0.8 ? 'bg-amber-500' : 'bg-primary';
-
-  return (
-    <div>
-      <div className="mb-1 flex items-center justify-between text-sm">
-        <span className="font-medium text-foreground">{label}</span>
-        <span className="text-muted-foreground">
-          {formatValue(meter, used)} / {formatValue(meter, limit)}
-        </span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
 
 export default async function BillingPage(): Promise<React.ReactElement> {
   const [subscription, usage] = await Promise.all([
@@ -65,12 +19,10 @@ export default async function BillingPage(): Promise<React.ReactElement> {
     apiGet<UsageSummary>('/billing/usage'),
   ]);
 
-  const planName = subscription
-    ? subscription.planId.charAt(0).toUpperCase() + subscription.planId.slice(1)
-    : '—';
+  const planName = subscription ? PLAN_ENTITLEMENTS[subscription.planId].displayName : '—';
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Billing &amp; usage</h1>
         <p className="text-sm text-muted-foreground">
@@ -83,9 +35,7 @@ export default async function BillingPage(): Promise<React.ReactElement> {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
               Current plan
-              <Badge variant="secondary" className="capitalize">
-                {planName}
-              </Badge>
+              <Badge variant="secondary">{planName}</Badge>
               {subscription?.status && (
                 <Badge variant="outline" className="capitalize">
                   {subscription.status.toLowerCase().replace('_', ' ')}
@@ -125,7 +75,6 @@ export default async function BillingPage(): Promise<React.ReactElement> {
                 <MeterBar
                   key={m.meter}
                   meter={m.meter}
-                  label={METER_LABELS[m.meter] ?? m.meter}
                   used={m.used}
                   limit={m.limit}
                   ratio={m.ratio}
@@ -157,6 +106,11 @@ export default async function BillingPage(): Promise<React.ReactElement> {
           )}
         </CardContent>
       </Card>
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">Plans</h2>
+        <PlanGrid currentPlanId={subscription?.planId ?? 'trial'} />
+      </div>
     </div>
   );
 }

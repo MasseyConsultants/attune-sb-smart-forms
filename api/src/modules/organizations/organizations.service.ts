@@ -1,20 +1,18 @@
 // Author: Robert Massey | Created: 2026-07-12 | Module: Organizations
 // Purpose: Org profile + subscription summary for the current tenant.
 
-import type { PlanId, SubscriptionSummary } from '@attune-sb/shared-types';
+import type {
+  OrganizationProfile,
+  OrgLifecycleState,
+  PlanId,
+  SubscriptionSummary,
+} from '@attune-sb/shared-types';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SubscriptionStatus } from '@prisma/client';
 
 import { OrganizationsRepository } from './organizations.repository';
 
-export interface OrganizationDto {
-  readonly id: string;
-  readonly name: string;
-  readonly slug: string;
-  readonly lifecycleState: string;
-  readonly createdAt: string;
-  readonly subscription: SubscriptionSummary | null;
-}
+export type OrganizationDto = OrganizationProfile;
 
 @Injectable()
 export class OrganizationsService {
@@ -31,7 +29,8 @@ export class OrganizationsService {
       id: org.id,
       name: org.name,
       slug: org.slug,
-      lifecycleState: org.lifecycleState,
+      lifecycleState: org.lifecycleState as OrgLifecycleState,
+      purgeScheduledAt: org.purgeScheduledAt?.toISOString() ?? null,
       createdAt: org.createdAt.toISOString(),
       subscription: sub
         ? {

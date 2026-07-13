@@ -6,8 +6,11 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { LayoutDashboard, FileText, FileStack, Workflow, CreditCard, Users } from 'lucide-react';
+import type { OrganizationProfile } from '@attune-sb/shared-types';
 
 import { BRAND } from '@/lib/brand';
+import { apiGet } from '@/lib/api-server';
+import { ReadOnlyBanner } from '@/components/billing/read-only-banner';
 import { LogoutButton } from './logout-button';
 
 interface NavItem {
@@ -46,11 +49,13 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
   },
 ];
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
-}): React.ReactElement {
+}): Promise<React.ReactElement> {
+  const org = await apiGet<OrganizationProfile>('/organizations/me');
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
@@ -114,6 +119,12 @@ export default function DashboardLayout({
             <LogoutButton />
           </div>
         </header>
+        {org && (
+          <ReadOnlyBanner
+            lifecycleState={org.lifecycleState}
+            purgeScheduledAt={org.purgeScheduledAt}
+          />
+        )}
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>

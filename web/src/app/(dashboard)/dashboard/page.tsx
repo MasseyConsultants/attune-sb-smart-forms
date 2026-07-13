@@ -4,24 +4,13 @@
 // meters land in S2, form/submission stats in S3/S4.
 
 import { Rocket, CalendarClock, Building2 } from 'lucide-react';
+import { SOFT_LIMIT_RATIO } from '@attune-sb/shared-types';
+import type { OrganizationProfile, UsageSummary } from '@attune-sb/shared-types';
 
 import { apiGet } from '@/lib/api-server';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-
-interface OrgDto {
-  readonly id: string;
-  readonly name: string;
-  readonly slug: string;
-  readonly lifecycleState: string;
-  readonly createdAt: string;
-  readonly subscription: {
-    readonly planId: string;
-    readonly status: string;
-    readonly trialEndsAt: string | null;
-    readonly currentPeriodEnd: string | null;
-    readonly seats: number;
-  } | null;
-}
+import { METER_LABELS } from '@/components/billing/meter-bar';
+import { UpgradeCta } from '@/components/billing/upgrade-cta';
 
 function daysLeft(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
@@ -32,10 +21,15 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ welcome?: string }>;
 }): Promise<React.ReactElement> {
-  const [org, params] = await Promise.all([apiGet<OrgDto>('/organizations/me'), searchParams]);
+  const [org, usage, params] = await Promise.all([
+    apiGet<OrganizationProfile>('/organizations/me'),
+    apiGet<UsageSummary>('/billing/usage'),
+    searchParams,
+  ]);
   const isWelcome = params.welcome === '1';
   const sub = org?.subscription ?? null;
   const onTrial = sub?.status === 'TRIALING' && sub.trialEndsAt;
+  const hotMeter = usage?.meters.find((m) => m.ratio >= SOFT_LIMIT_RATIO) ?? null;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -49,6 +43,14 @@ export default async function DashboardPage({
             </p>
           </div>
         </div>
+      )}
+
+      {hotMeter && (
+        <UpgradeCta
+          limitLabel={METER_LABELS[hotMeter.meter].toLowerCase()}
+          used={hotMeter.used}
+          limit={hotMeter.limit}
+        />
       )}
 
       <div>
