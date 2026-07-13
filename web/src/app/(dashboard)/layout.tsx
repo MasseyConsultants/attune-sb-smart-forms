@@ -42,7 +42,7 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
     label: 'Billing',
     href: '/billing',
     icon: <CreditCard className="h-4 w-4" />,
-    enabled: false,
+    enabled: true,
   },
 ];
 
