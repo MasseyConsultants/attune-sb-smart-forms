@@ -1,0 +1,331 @@
+// Author: Robert Massey | Created: 2026-07-12 | Module: Prisma Schema v1 (Sprint 0)
+// Conventions: UUID v4 PKs, createdAt/updatedAt/deletedAt on domain tables,
+// snake_case column mapping, every FK and WHERE column indexed.
+// Entitlement models follow docs/PRICING_AND_ENTITLEMENTS.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+
+enum Role {
+  PLATFORM_ADMIN
+  OWNER
+  ADMIN
+  BUILDER
+  VIEWER
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  PAUSED
+}
+
+enum OrgLifecycleState {
+  ACTIVE
+  EXPIRED_TRIAL
+  CANCELED
+  PURGE_PENDING
+  PURGED
+}
+
+enum Meter {
+  SUBMISSIONS
+  DOC_FILLS
+  WORKFLOW_RUNS
+  EMAILS
+  AI_CREDITS
+  STORAGE_BYTES
+}
+
+enum PurgePhase {
+  BLOBS_DELETED
+  HARD_DELETED
+  RESTORED
+  LEGAL_HOLD_SKIP
+}
+
+// --- Tenancy ---
+
+model Organization {
+  id             String            @id @default(uuid())
+  name           String
+  slug           String            @unique
+  settings       Json              @default("{}")
+  isActive       Boolean           @default(true) @map("is_active")
+
+  // Data lifecycle (docs/PRICING_AND_ENTITLEMENTS.md § Data Lifecycle & Purge)
+  lifecycleState   OrgLifecycleState @default(ACTIVE) @map("lifecycle_state")
+  readOnlyAt       DateTime?         @map("read_only_at")
+  purgeScheduledAt DateTime?         @map("purge_scheduled_at")
+  purgeRequestedAt DateTime?         @map("purge_requested_at")
+  legalHoldAt      DateTime?         @map("legal_hold_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  users                User[]
+  subscription         Subscription?
+  usageCounters        UsageCounter[]
+  usageEvents          UsageEvent[]
+  entitlementOverrides EntitlementOverride[]
+  inviteTokens         InviteToken[]
+
+  @@index([lifecycleState])
+  @@index([deletedAt])
+  @@map("organizations")
+}
+
+// --- Users & Auth ---
+
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  passwordHash String? @map("password_hash")
+  firstName    String  @map("first_name")
+  lastName     String  @map("last_name")
+  role         Role    @default(VIEWER)
+  isActive     Boolean @default(true) @map("is_active")
+
+  emailVerified      Boolean   @default(false) @map("email_verified")
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  acceptedTermsAt    DateTime? @map("accepted_terms_at")
+
+  // Lockout (5 fails / 15 min)
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  lockedUntil    DateTime? @map("locked_until")
+
+  firstLoginAt DateTime? @map("first_login_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+  loginCount   Int       @default(0) @map("login_count")
+
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([organizationId])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @map("token_hash")
+  // Family tracking: reuse of a revoked token revokes the whole family.
+  family    String
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  expiresAt DateTime @map("expires_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([family])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  jtiHash   String    @unique @map("jti_hash")
+  usedAt    DateTime? @map("used_at")
+  expiresAt DateTime  @map("expires_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model InviteToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique @map("token_hash")
+  email     String
+  firstName String    @map("first_name")
+  lastName  String    @map("last_name")
+  role      Role
+  expiresAt DateTime  @map("expires_at")
+  acceptedAt DateTime? @map("accepted_at")
+
+  orgId       String       @map("org_id")
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedById String       @map("invited_by_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([orgId])
+  @@index([email])
+  @@map("invite_tokens")
+}
+
+// --- Billing & Entitlements (Stripe is billing input; this is the authority) ---
+
+// Seeded rows mirror PLAN_ENTITLEMENTS for reporting joins and Stripe price
+// mapping. Limits are NOT stored here at runtime — code constants are authority.
+model Plan {
+  id                   String @id // 'solo' | 'growth' | 'business'
+  displayName          String @map("display_name")
+  stripePriceIdMonthly String @default("") @map("stripe_price_id_monthly")
+  stripePriceIdAnnual  String @default("") @map("stripe_price_id_annual")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  organizationId       String             @unique @map("organization_id")
+  organization         Organization       @relation(fields: [organizationId], references: [id])
+  planId               String             @map("plan_id") // PlanId incl. 'trial'
+  status               SubscriptionStatus
+  stripeCustomerId     String?            @map("stripe_customer_id")
+  stripeSubscriptionId String?            @map("stripe_subscription_id")
+  trialEndsAt          DateTime?          @map("trial_ends_at")
+  currentPeriodEnd     DateTime?          @map("current_period_end")
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  // Usage counters reset on this day of month (org's billing anchor)
+  billingAnchorDay     Int                @map("billing_anchor_day")
+  seats                Int                @default(1)
+  // First failed-invoice timestamp — drives the dunning grace windows
+  pastDueSince         DateTime?          @map("past_due_since")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([trialEndsAt])
+  @@index([stripeCustomerId])
+  @@map("subscriptions")
+}
+
+// One row per org × meter × period. Atomic increments; Redis cache in front.
+model UsageCounter {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  meter          Meter
+  periodStart    DateTime     @map("period_start")
+  periodEnd      DateTime     @map("period_end")
+  used           BigInt       @default(0)
+  // Once-per-period soft-limit notification latch
+  softWarnedAt   DateTime?    @map("soft_warned_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([organizationId, meter, periodStart])
+  @@index([organizationId])
+  @@map("usage_counters")
+}
+
+// Append-only, idempotent ledger — source for billing reconciliation & analytics.
+model UsageEvent {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  meter          Meter
+  quantity       BigInt
+  idempotencyKey String       @unique @map("idempotency_key")
+  refType        String?      @map("ref_type") // 'submission' | 'workflowExecution' | ...
+  refId          String?      @map("ref_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId, meter])
+  @@map("usage_events")
+}
+
+// Sales exceptions, grandfathering, temporary grants.
+model EntitlementOverride {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  entitlement    String
+  value          Json
+  expiresAt      DateTime?    @map("expires_at")
+  reason         String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("entitlement_overrides")
+}
+
+// Stripe webhook event dedupe — handlers are idempotent by event ID.
+model StripeWebhookEvent {
+  id          String   @id // Stripe event id (evt_...)
+  type        String
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("stripe_webhook_events")
+}
+
+// --- Data lifecycle audit ---
+
+model PurgeAuditLog {
+  id             String     @id @default(uuid())
+  // Survives as reference to tombstone — intentionally NOT a FK so hard-deleted
+  // orgs keep their audit trail.
+  organizationId String     @map("organization_id")
+  phase          PurgePhase
+  entityCounts   Json       @map("entity_counts") // { forms: n, submissions: n, blobsBytes: n, ... }
+  triggeredBy    String     @map("triggered_by") // 'lifecycle-sweep' | 'user-request' | 'support:[userId]'
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId])
+  @@map("purge_audit_logs")
+}
+
+// Minimal record that survives a purge: no form/submission/document content.
+model OrgTombstone {
+  id             String   @id @default(uuid())
+  organizationId String   @unique @map("organization_id")
+  orgName        String   @map("org_name")
+  ownerEmailHash String   @map("owner_email_hash") // SHA-256
+  planAtExit     String   @map("plan_at_exit")
+  lifecyclePath  String   @map("lifecycle_path") // 'trial' | 'canceled'
+  entityCounts   Json     @map("entity_counts")
+  purgedAt       DateTime @map("purged_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("org_tombstones")
+}
+
+// Trial-abuse fingerprint — purged trial orgs cannot re-trial for free.
+model TrialFingerprint {
+  id              String   @id @default(uuid())
+  emailDomainHash String   @map("email_domain_hash") // SHA-256 of the signup email domain
+  paymentHash     String?  @map("payment_hash") // Stripe payment-method fingerprint hash
+  organizationId  String   @map("organization_id") // reference only, no FK
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([emailDomainHash])
+  @@map("trial_fingerprints")
+}
