@@ -14,3 +14,12 @@ export function getApiUrl(): string {
     'http://localhost:3001/api/v1'
   );
 }
+
+/**
+ * API base URL for code running in the BROWSER (public form intake posts
+ * directly so the per-IP throttle sees the real visitor address, not the
+ * Next.js server). NEXT_PUBLIC_ vars are inlined at build time.
+ */
+export function getBrowserApiUrl(): string {
+  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+}

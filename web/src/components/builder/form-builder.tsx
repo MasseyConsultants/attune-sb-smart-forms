@@ -14,7 +14,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { ArrowLeft, Eye, Hammer, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, Copy, ExternalLink, Eye, Hammer, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -39,6 +39,41 @@ const STATUS_VARIANT: Record<FormStatus, 'default' | 'secondary' | 'outline'> = 
   [FormStatus.PUBLISHED]: 'default',
   [FormStatus.ARCHIVED]: 'outline',
 };
+
+/** Copyable public fill link, shown only while the form is live. */
+function PublicLinkChip({ slug }: { readonly slug: string }): React.ReactElement {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <span className="flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs">
+      <a
+        href={`/f/${slug}`}
+        target="_blank"
+        rel="noopener"
+        className="flex items-center gap-1 font-medium text-primary hover:underline"
+      >
+        /f/{slug}
+        <ExternalLink className="h-3 w-3" />
+      </a>
+      <button
+        type="button"
+        aria-label="Copy public link"
+        className="ml-1 text-muted-foreground hover:text-foreground"
+        onClick={() => {
+          void navigator.clipboard.writeText(`${window.location.origin}/f/${slug}`);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+      >
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-green-600" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
+      </button>
+    </span>
+  );
+}
 
 export function FormBuilder({ form }: { readonly form: Form }): React.ReactElement {
   const store = useBuilderStore();
@@ -151,6 +186,9 @@ export function FormBuilder({ form }: { readonly form: Form }): React.ReactEleme
           onChange={(e) => store.setName(e.target.value)}
         />
         {store.status && <Badge variant={STATUS_VARIANT[store.status]}>{store.status}</Badge>}
+        {store.status === FormStatus.PUBLISHED && store.slug && (
+          <PublicLinkChip slug={store.slug} />
+        )}
         <span className="text-xs text-muted-foreground">
           v{store.version}
           {isDraft && (store.dirty || saveForm.isPending ? ' · saving…' : ' · saved')}
