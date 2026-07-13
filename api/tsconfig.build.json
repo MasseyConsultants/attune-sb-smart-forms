@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    // deleteOutDir wipes dist but a stale .tsbuildinfo then skips re-emitting
+    // unchanged files, leaving dist incomplete. Disable incremental for builds.
+    "incremental": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts", "prisma"]
+}
