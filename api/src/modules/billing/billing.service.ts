@@ -60,7 +60,7 @@ export class BillingService {
 
     const client = this.stripe.getClient();
     const priceId = this.stripe.priceIdFor(planId, interval);
-    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
+    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3100');
 
     const session = await client.checkout.sessions.create({
       mode: 'subscription',
@@ -89,7 +89,7 @@ export class BillingService {
     }
 
     const client = this.stripe.getClient();
-    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
+    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3100');
     const session = await client.billingPortal.sessions.create({
       customer: sub.stripeCustomerId,
       return_url: `${appUrl}/billing`,

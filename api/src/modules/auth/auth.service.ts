@@ -300,7 +300,7 @@ export class AuthService {
       expiresAt: new Date(Date.now() + 900_000),
     });
 
-    const appUrl = this.configService.get<string>('APP_URL', 'http://localhost:3000');
+    const appUrl = this.configService.get<string>('APP_URL', 'http://localhost:3100');
     const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
 
     await this.emailService.send({
@@ -403,7 +403,7 @@ export class AuthService {
       { expiresIn: 86400 }, // 24 hours
     );
 
-    const appUrl = this.configService.get<string>('APP_URL', 'http://localhost:3000');
+    const appUrl = this.configService.get<string>('APP_URL', 'http://localhost:3100');
     const verifyLink = `${appUrl}/verify-email?token=${verificationToken}`;
 
     const user = await this.authRepository.findUserById(userId);

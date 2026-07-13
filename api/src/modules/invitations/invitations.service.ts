@@ -231,7 +231,7 @@ export class InvitationsService {
     rawToken: string,
     expiresAt: Date,
   ): Promise<void> {
-    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
+    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3100');
     const acceptUrl = `${appUrl}/accept-invite?token=${rawToken}`;
     const expiry = expiresAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 

@@ -142,7 +142,7 @@ describe('EntitlementsService hard limits — every plan × every periodic meter
       expect(body.details.limit).toBe(50);
       expect(body.details.current).toBe(50);
       expect(body.details.resetsAt).toBeTruthy();
-      expect(body.details.upgradeUrl).toBe('http://localhost:3000/billing');
+      expect(body.details.upgradeUrl).toBe('http://localhost:3100/billing');
     }
   });
 

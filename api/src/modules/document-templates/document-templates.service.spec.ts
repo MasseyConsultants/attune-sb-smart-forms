@@ -181,7 +181,7 @@ describe('DocumentTemplatesService', () => {
           limit: 1,
           current: 1,
           resetsAt: null,
-          upgradeUrl: 'http://localhost:3000/billing',
+          upgradeUrl: 'http://localhost:3100/billing',
         }),
       );
       const buffer = await validPdfBuffer();

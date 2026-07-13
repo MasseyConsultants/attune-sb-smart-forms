@@ -344,7 +344,7 @@ export class EntitlementsService {
   }
 
   private upgradeUrl(): string {
-    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000');
+    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3100');
     return `${appUrl}/billing`;
   }
 

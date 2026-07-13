@@ -11,7 +11,7 @@ export function getApiUrl(): string {
   return (
     process.env.INTERNAL_API_URL ??
     process.env.NEXT_PUBLIC_API_URL ??
-    'http://localhost:3001/api/v1'
+    'http://localhost:3101/api/v1'
   );
 }
 
@@ -21,5 +21,5 @@ export function getApiUrl(): string {
  * Next.js server). NEXT_PUBLIC_ vars are inlined at build time.
  */
 export function getBrowserApiUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3101/api/v1';
 }

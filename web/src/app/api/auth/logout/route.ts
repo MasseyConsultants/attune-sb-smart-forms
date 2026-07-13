@@ -30,6 +30,6 @@ export async function POST(_req: NextRequest): Promise<NextResponse> {
   clearSessionCookies(cookieStore);
 
   // 303 redirect: native <form> submissions land on the branded login page.
-  const base = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+  const base = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3100';
   return NextResponse.redirect(new URL('/login?signedOut=1', base), { status: 303 });
 }

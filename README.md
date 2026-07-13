@@ -43,11 +43,13 @@ pnpm install
 pnpm db:migrate
 pnpm db:seed
 
-# 4. Run everything (API :3001, web :3000)
+# 4. Run everything (API :3101, web :3100)
+# Ports are in the 31xx block so this can run beside the enterprise
+# edition (which uses 3000 web / 3001 api).
 pnpm dev
 ```
 
-Swagger lives at `http://localhost:3001/api/docs` in dev.
+Swagger lives at `http://localhost:3101/api/docs` in dev.
 
 ### Seed credentials
 
@@ -58,7 +60,7 @@ Swagger lives at `http://localhost:3001/api/docs` in dev.
 
 The demo org starts on an active 14-day trial (2 published forms,
 50 submissions/mo, 10 document fills/mo, 1 uploaded template). Or sign up
-fresh at `http://localhost:3000/signup` — no credit card required.
+fresh at `http://localhost:3100/signup` — no credit card required.
 
 Template uploads are stored on local disk (`api/storage/` by default;
 override with `STORAGE_LOCAL_DIR`). An S3-compatible driver is backlogged
@@ -69,7 +71,7 @@ override with `STORAGE_LOCAL_DIR`). An S3-compatible driver is backlogged
 The trial path works with no Stripe keys; checkout/portal endpoints return
 `BILLING_NOT_CONFIGURED` (503) until keys exist. To test paid flows, put test
 keys in `.env` (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, price IDs) and
-forward webhooks: `stripe listen --forward-to localhost:3001/api/v1/webhooks/stripe`.
+forward webhooks: `stripe listen --forward-to localhost:3101/api/v1/webhooks/stripe`.
 
 ## Quality gates
 

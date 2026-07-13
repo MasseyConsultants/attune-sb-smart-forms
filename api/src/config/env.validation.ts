@@ -11,7 +11,7 @@ export const envValidationSchema = Joi.object({
 
   APP_VERSION: Joi.string().default('0.1.0'),
 
-  API_PORT: Joi.number().integer().min(1).max(65535).default(3001),
+  API_PORT: Joi.number().integer().min(1).max(65535).default(3101),
 
   // --- Database ---
   DATABASE_URL: Joi.string()
@@ -34,14 +34,14 @@ export const envValidationSchema = Joi.object({
   REDIS_PASSWORD: Joi.string().optional().allow(''),
 
   // --- CORS ---
-  CORS_ORIGINS: Joi.string().default('http://localhost:3000'),
+  CORS_ORIGINS: Joi.string().default('http://localhost:3100'),
 
   // --- Encryption (AES-256-GCM for stored third-party credentials) ---
   ENCRYPTION_KEY: Joi.string().length(64).required(),
 
   // --- URLs ---
-  APP_URL: Joi.string().uri().default('http://localhost:3000'),
-  API_PUBLIC_URL: Joi.string().uri().default('http://localhost:3001'),
+  APP_URL: Joi.string().uri().default('http://localhost:3100'),
+  API_PUBLIC_URL: Joi.string().uri().default('http://localhost:3101'),
 
   // --- Stripe (billing) ---
   // Optional in dev so the trial path works without Stripe keys. Checkout and

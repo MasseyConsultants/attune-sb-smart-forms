@@ -43,7 +43,7 @@ const REFRESH_AHEAD_SECS = 30;
 const SESSION_MAX_AGE = 12 * 60 * 60;
 
 const API_URL =
-  process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+  process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3101/api/v1';
 const IS_PROD = process.env.NODE_ENV === 'production';
 
 interface RefreshData {

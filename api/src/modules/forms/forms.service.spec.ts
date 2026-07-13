@@ -203,7 +203,7 @@ describe('FormsService — publish gating (the paywall boundary)', () => {
         limit: 2,
         current: 2,
         resetsAt: null,
-        upgradeUrl: 'http://localhost:3000/billing',
+        upgradeUrl: 'http://localhost:3100/billing',
       }),
     );
 

@@ -1,7 +1,7 @@
 # Author: Robert Massey | Created: 2026-07-13 | Module: Scripts
 # Sprint 6 acceptance smoke: auto-map -> publish -> public submission -> filled PDF.
 $ErrorActionPreference = 'Stop'
-$base = 'http://localhost:3001/api/v1'
+$base = 'http://localhost:3101/api/v1'
 
 function Step($msg) { Write-Host "== $msg" -ForegroundColor Cyan }
 

@@ -216,7 +216,7 @@ export class LifecycleService {
       orgName: org.name,
       path: org.lifecycleState === OrgLifecycleState.EXPIRED_TRIAL ? 'trial' : 'canceled',
       purgeDate: org.purgeScheduledAt,
-      appUrl: this.config.get<string>('APP_URL', 'http://localhost:3000'),
+      appUrl: this.config.get<string>('APP_URL', 'http://localhost:3100'),
       dayOffset,
     });
     await this.emailService.send({ to: owner.email, subject, html });

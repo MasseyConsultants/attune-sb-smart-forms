@@ -14,4 +14,4 @@ process.env.BCRYPT_ROUNDS = '4'; // fast hashing in tests
 process.env.REDIS_HOST = process.env.REDIS_HOST ?? 'localhost';
 process.env.REDIS_PORT = process.env.REDIS_PORT ?? '6382';
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY ?? '0'.repeat(64);
-process.env.APP_URL = process.env.APP_URL ?? 'http://localhost:3000';
+process.env.APP_URL = process.env.APP_URL ?? 'http://localhost:3100';

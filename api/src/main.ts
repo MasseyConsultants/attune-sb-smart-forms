@@ -36,7 +36,7 @@ async function bootstrap(): Promise<void> {
   app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
   const config = app.get(ConfigService);
-  const port = config.get<number>('API_PORT', 3001);
+  const port = config.get<number>('API_PORT', 3101);
   const nodeEnv = config.get<string>('NODE_ENV', 'development');
   const isDev = nodeEnv !== 'production';
 
@@ -50,7 +50,7 @@ async function bootstrap(): Promise<void> {
   );
 
   // --- CORS ---
-  const rawOrigins = config.get<string>('CORS_ORIGINS', 'http://localhost:3000');
+  const rawOrigins = config.get<string>('CORS_ORIGINS', 'http://localhost:3100');
   const allowedOrigins = rawOrigins.split(',').map((o) => o.trim());
 
   app.enableCors({
