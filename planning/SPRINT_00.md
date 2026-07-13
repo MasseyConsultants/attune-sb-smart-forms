@@ -43,3 +43,41 @@ MFA/TOTP, Google OAuth (fast-follow S3), enterprise SSO, AI workflow nodes,
 AI mapping Stage 2 (vision), overage packs, native mobile apps, per-permission
 RBAC table, push notifications, Azure Document Intelligence for scanned PDFs,
 affiliate/referral program, annual-plan proration edge cases, EU data residency.
+
+---
+
+## Retro (closed 2026-07-12)
+
+**Delivered.** All 9 tasks; acceptance met: `pnpm dev` boots api+web,
+signup→login round-trip creates org + OWNER + TRIALING subscription with
+correct `trialEndsAt`, auth pages carry the orange brand treatment,
+`/privacy` / `/terms` / `/refund-policy` resolve, lint/typecheck/test green.
+
+**What went well**
+
+- Porting from enterprise paid off: common modules, auth flows, and the theme
+  system landed nearly wholesale with SMB simplifications (no MFA/SSO/vendor).
+- Extracting `DecorativeBackground`/`Separator` into `components/brand/` up
+  front (vs. enterprise's inline-per-page copies) made 6 auth pages trivial.
+- Building `shared-types` as a compiled package (dist + declarations) instead
+  of a source-path alias avoided the enterprise `rootDir` entanglement.
+
+**What bit us**
+
+- Windows shell quoting broke `ts-node --compiler-options` inline JSON for the
+  seed script → dedicated `tsconfig.seed.json`. Rule: no inline JSON in
+  package scripts.
+- Nest CLI + stale `.tsbuildinfo` emitted an incomplete `dist/` after
+  `deleteOutDir`; fixed with `incremental: false` in `tsconfig.build.json`.
+- `HttpExceptionFilter` assumed `error` is always a string; Terminus health
+  payloads proved otherwise and crashed the process. Fixed + regression spec.
+  Lesson: ported code gets re-validated against libraries the enterprise
+  edition didn't use.
+
+**Debt carried into S1**
+
+- Test coverage far below the 80/70 gates — only 2 API suites exist. S1 must
+  ship specs alongside the entitlement layer (which requires exhaustive tests
+  per `.cursorrules` anyway).
+- Legal page copy is draft-quality; needs owner review before launch (P6).
+- semantic-release + CHANGELOG automation deferred to S10.
