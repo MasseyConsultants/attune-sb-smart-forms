@@ -38,6 +38,17 @@ describe('FormRenderer', () => {
     expect(labels[0]).toContain('First');
   });
 
+  it('renders API-authored fields missing config/required/sortOrder without crashing', () => {
+    // Schemas are a JSON column — scripts and imports may omit optional shape.
+    // Regression: preview crashed on `field.config.placeholder` (S8 smoke form).
+    const schema = {
+      fields: [{ id: 'f-name', type: 'text', label: 'Full Name', page: 1 }],
+    } as unknown as FormSchema;
+    render(<FormRenderer schema={schema} />);
+    expect(screen.getByText('Full Name')).toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+  });
+
   it('blocks submit when a required field is empty and shows the error', () => {
     const onSubmit = jest.fn();
     const schema: FormSchema = {

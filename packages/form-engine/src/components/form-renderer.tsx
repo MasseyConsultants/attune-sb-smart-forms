@@ -34,6 +34,21 @@ interface PageGroup {
   readonly fields: FieldDefinition[];
 }
 
+/**
+ * Form schemas come from a JSON column and may be API-authored (imports,
+ * scripts), so optional shape can be missing. Fill the gaps here instead of
+ * crashing on `field.config.x` deep in a field component.
+ */
+function normalizeField(field: FieldDefinition): FieldDefinition {
+  return {
+    ...field,
+    config: field.config ?? {},
+    required: field.required ?? false,
+    sortOrder: field.sortOrder ?? 0,
+    page: field.page ?? 1,
+  };
+}
+
 function groupPages(fields: FieldDefinition[]): PageGroup[] {
   const map = new Map<number, FieldDefinition[]>();
   for (const field of fields) {
@@ -61,7 +76,7 @@ export function FormRenderer({
   disabled,
   footer,
 }: FormRendererProps): React.ReactElement {
-  const fields = schema.fields;
+  const fields = useMemo(() => (schema.fields ?? []).map(normalizeField), [schema.fields]);
   const settings = schema.settings;
 
   const [values, setValues] = useState<FormValues>({});
