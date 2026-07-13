@@ -29,10 +29,10 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
   },
   { label: 'Forms', href: '/forms', icon: <FileText className="h-4 w-4" />, enabled: true },
   {
-    label: 'Documents',
-    href: '/documents',
+    label: 'Templates',
+    href: '/templates',
     icon: <FileStack className="h-4 w-4" />,
-    enabled: false,
+    enabled: true,
   },
   {
     label: 'Workflows',

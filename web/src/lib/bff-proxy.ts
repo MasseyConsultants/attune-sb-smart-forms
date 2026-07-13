@@ -10,7 +10,7 @@ import { getApiUrl } from './get-api-url';
 export async function proxyAuthenticated(
   req: NextRequest,
   path: string,
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET',
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE' = 'GET',
 ): Promise<NextResponse> {
   const accessToken = req.cookies.get('access_token')?.value;
   if (!accessToken) {
