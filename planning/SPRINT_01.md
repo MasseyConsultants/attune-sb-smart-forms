@@ -61,3 +61,36 @@ trial-expiry reminder emails, plan/billing pages + usage meter UI, dunning UX.
 - Counters reset on the org's billing anchor day, not the 1st
 - Entitlement layer test matrix green in CI; no plan names/limits hardcoded
   outside `@attune-sb/shared-types`
+
+---
+
+## Retro (closed 2026-07-12)
+
+**Delivered.** All 5 tasks; acceptance met. 112 API tests across 7 suites;
+live smoke verified `/billing/usage` (anchor-day periods) and
+`/billing/subscription`; `/billing` page renders meters + upgrade actions.
+
+**What went well**
+
+- Ledger-first consume (UsageEvent insert → counter upsert in one transaction)
+  made idempotency structural instead of bolted-on: a P2002 unique collision
+  IS the replay signal.
+- Keeping limits in `PLAN_ENTITLEMENTS` and testing plan × meter with a loop
+  means any future tier/limit change updates the matrix automatically.
+- The soft-warn latch (`softWarnedAt` on the counter row) avoids needing an
+  event bus dependency in S1 — the S2 email hooks straight into it.
+
+**What bit us**
+
+- import/order lint round-trips: shared-types sorts before @nestjs
+  alphabetically; writing imports in that order up front avoids fixer churn.
+- The billing anchor clamping (anchor 31 → Feb 28 → back to Mar 31) needed
+  more period-math cases than expected; all pinned in `period.spec.ts`.
+
+**Deferred / notes**
+
+- Live Stripe Checkout end-to-end needs real test keys — manual verification
+  step documented; webhook handlers covered by fixture tests meanwhile.
+- Per-plan `apiRateLimitPerMin` in OrgThrottlerGuard deferred to S2 (guard
+  reads static throttler tiers today).
+- Soft-limit email + PAST_DUE dunning UX land in S2 with the lifecycle work.

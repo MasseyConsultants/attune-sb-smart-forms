@@ -5,21 +5,21 @@
 
 ## Current Status
 
-- **Phase:** P1 Paywall Core (P0 complete)
-- **Current sprint:** Sprint 1 (`planning/SPRINT_01.md`)
+- **Phase:** P1 Paywall Core (S1 complete; S2 next)
+- **Current sprint:** Sprint 2 (`planning/SPRINT_02.md`)
 - **Version:** 0.1.0
 
 ## Phase Progress
 
-| Phase               | Sprints | Status      | Notes                                       |
-| ------------------- | ------- | ----------- | ------------------------------------------- |
-| P0 Foundation       | S0      | ✅ Complete | 2026-07-12 — auth, branding, CI, seed green |
-| P1 Paywall Core     | S1–S2   | In progress | Entitlements + Stripe next                  |
-| P2 Form Builder     | S3–S4   | Not started | —                                           |
-| P3 SmartMapper      | S5–S6   | Not started | —                                           |
-| P4 Workflow Builder | S7–S8   | Not started | —                                           |
-| P5 Library + Polish | S9      | Not started | —                                           |
-| P6 Launch Hardening | S10–S11 | Not started | —                                           |
+| Phase               | Sprints | Status      | Notes                                                                  |
+| ------------------- | ------- | ----------- | ---------------------------------------------------------------------- |
+| P0 Foundation       | S0      | ✅ Complete | 2026-07-12 — auth, branding, CI, seed green                            |
+| P1 Paywall Core     | S1–S2   | In progress | S1 done 2026-07-12 (entitlements + Stripe); S2: lifecycle + plan pages |
+| P2 Form Builder     | S3–S4   | Not started | —                                                                      |
+| P3 SmartMapper      | S5–S6   | Not started | —                                                                      |
+| P4 Workflow Builder | S7–S8   | Not started | —                                                                      |
+| P5 Library + Polish | S9      | Not started | —                                                                      |
+| P6 Launch Hardening | S10–S11 | Not started | —                                                                      |
 
 ## Sprint 0 Task Status
 
@@ -44,13 +44,35 @@
 - `/privacy`, `/terms`, `/refund-policy` resolve with real draft copy ✓
 - Pushed to `github.com/MasseyConsultants/attune-sb-smart-forms` (main)
 
+## Sprint 1 Task Status
+
+| #   | Task                  | Status  | Notes                                                                  |
+| --- | --------------------- | ------- | ---------------------------------------------------------------------- |
+| 1   | Entitlements module   | ✅ Done | check/consume/overrides, anchor-day periods, guard, LIMIT_EXCEEDED 402 |
+| 2   | Stripe billing module | ✅ Done | checkout, portal, 5 idempotent webhook handlers, price catalog via env |
+| 3   | Trial abuse hardening | ✅ Done | domain heuristic on signup (S0) + card fingerprint hash on checkout    |
+| 4   | Web entitlement hooks | ✅ Done | useEntitlement/useUsage/useCheckout, billing BFF, UpgradeCta, /billing |
+| 5   | Exhaustive tests      | ✅ Done | 112 tests: plan×meter matrix, replays, webhook fixtures, auth debt     |
+
+## Sprint 1 Verification (2026-07-12)
+
+- 112 API tests green across 7 suites (entitlement matrix: 4 plans × 5 periodic
+  meters × under/at-limit boundaries; soft-warn latch; idempotent consume replay)
+- Live smoke: `GET /billing/usage` returns all 6 meters with trial limits and
+  anchor-day period (13th); `GET /billing/subscription` reports TRIALING
+- Webhook replay (same event id) verified a no-op via recorded fixtures
+- With no Stripe keys: trial flows fully work; checkout/portal fail fast with
+  `BILLING_NOT_CONFIGURED` (503) — pinned by spec
+- `/billing` page renders plan, usage meters with 80%/100% color thresholds,
+  and checkout/portal actions (manual Stripe checkout verification pending keys)
+
 ## Quality Gates
 
-| Gate              | Target | Current                                    |
-| ----------------- | ------ | ------------------------------------------ |
-| API test coverage | 80%    | Low — S0 shipped 2 suites; debt owed in S1 |
-| Web test coverage | 70%    | 0% — first component tests due in S2       |
-| CI status         | Green  | Workflow added S0; first run on next push  |
+| Gate              | Target | Current                                              |
+| ----------------- | ------ | ---------------------------------------------------- |
+| API test coverage | 80%    | Improving — 7 suites / 112 tests; paywall exhaustive |
+| Web test coverage | 70%    | 0% — first component tests due in S2                 |
+| CI status         | Green  | Workflow added S0; validating on pushes              |
 
 ## Unplanned Items
 
