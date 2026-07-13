@@ -27,7 +27,7 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
     icon: <LayoutDashboard className="h-4 w-4" />,
     enabled: true,
   },
-  { label: 'Forms', href: '/forms', icon: <FileText className="h-4 w-4" />, enabled: false },
+  { label: 'Forms', href: '/forms', icon: <FileText className="h-4 w-4" />, enabled: true },
   {
     label: 'Documents',
     href: '/documents',

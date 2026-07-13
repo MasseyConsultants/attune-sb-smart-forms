@@ -16,6 +16,8 @@ const config: Config = {
     './src/components/**/*.{ts,tsx}',
     './src/app/**/*.{ts,tsx}',
     './src/providers/**/*.{ts,tsx}',
+    // form-engine components use Tailwind tokens; scan them or their classes purge.
+    '../packages/form-engine/src/**/*.{ts,tsx}',
   ],
 
   theme: {

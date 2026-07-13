@@ -34,6 +34,9 @@ export async function proxyAuthenticated(
 
   try {
     const upstream = await fetch(`${getApiUrl()}${path}`, init);
+    if (upstream.status === 204) {
+      return new NextResponse(null, { status: 204 });
+    }
     const body: unknown = await upstream.json();
     return NextResponse.json(body, { status: upstream.status });
   } catch {
