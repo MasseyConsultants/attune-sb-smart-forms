@@ -1,0 +1,42 @@
+{
+  "name": "@attune-sb/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API contracts, domain entities, enums, and PLAN_ENTITLEMENTS — the entitlement source of truth",
+  "author": "Robert Massey",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
+    "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --passWithNoTests",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@attune-sb/eslint-config": "workspace:*",
+    "@types/jest": "^29.5.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.4.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/*.spec.ts"
+    ]
+  }
+}
