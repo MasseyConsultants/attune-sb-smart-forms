@@ -58,3 +58,51 @@ form-picker UX (SB-014), export-all (SB-015).
 - A read-only org cannot create/edit/publish forms but can view them
 - Cross-org form access denied and logged as a security event
 - Engine + forms API + builder store tests green in CI
+
+---
+
+## Retrospective (2026-07-13)
+
+### Delivered
+
+1. **`@attune-sb/form-engine` 0.3.0** — logic layer (conditional visibility,
+   navigation rules, validate-form) ported verbatim; the React Native renderer
+   was NOT portable, so DOM field components were written fresh (adapted from
+   the enterprise admin portal's preview): FieldInput dispatcher for all 30
+   types, FieldWrapper, and a multi-page FormRenderer with a submit hook.
+   42 tests (4 suites) including a renderer suite with jsdom.
+2. **Forms API** — CRUD + `DRAFT → PUBLISHED → ARCHIVED` FSM (unpublish returns
+   to DRAFT and bumps the version), immutable `FormVersion` snapshots upserted
+   idempotently, publish gated by the `activeForms` counted resource, unique
+   regenerable public slugs (lookalike-free alphabet), cross-org access
+   answered 404 + security log. 24 specs.
+3. **Builder studio** — Zustand store (add/config/reorder/remove + dirty
+   tracking), dnd-kit palette/canvas/inspector, live preview via the engine
+   renderer, 1.5s debounced autosave for drafts, publish/unpublish/republish
+   actions with the LIMIT_EXCEEDED → UpgradeCta upgrade flow. Builder bundle
+   loads via `next/dynamic` (ssr: false). Forms nav enabled.
+
+### Verified live
+
+Trial org at cap 2: two publishes OK, third returned
+`LIMIT_EXCEEDED {limit:2, current:2, upgradeUrl}`; unpublish → publish swap
+worked; republish produced v2 with both snapshots intact; `/billing/usage`
+reports the live count.
+
+### What bit us
+
+- **Windows DLL lock**: `prisma generate` fails (EPERM rename) while the API
+  dev server runs — stop the watcher before `pnpm add` (postinstall runs
+  db:generate) or migrations.
+- **ts-jest type isolation**: jest-dom matchers need an explicit
+  `import '@testing-library/jest-dom'` inside `.test.tsx` files in
+  form-engine — the jest.setup.ts import doesn't feed ts-jest's type program.
+- **shared-types drift found at port time**: `ConditionalRule.value` had to
+  become optional (is_empty/is_not_empty carry no value) — exactly the drift
+  MASTER_PLAN §6 predicted; fixed in shared-types, not patched around.
+
+### Deferred
+
+- Builder UI browser click-through happens at Phase 2 close (manual checklist)
+- `fill_document`/`send_document` WorkflowNodeType additions land with S7
+  workflows (no consumer yet)

@@ -5,8 +5,8 @@
 
 ## Current Status
 
-- **Phase:** P2 Form Builder (P1 complete 2026-07-13)
-- **Current sprint:** Sprint 3 (`planning/SPRINT_03.md`)
+- **Phase:** P2 Form Builder (S3 complete 2026-07-13; S4 next)
+- **Current sprint:** Sprint 4 (`planning/SPRINT_04.md`)
 - **Version:** 0.1.0
 
 ## Phase Progress
@@ -15,7 +15,7 @@
 | ------------------- | ------- | ----------- | ---------------------------------------------------------------------- |
 | P0 Foundation       | S0      | ✅ Complete | 2026-07-12 — auth, branding, CI, seed green                            |
 | P1 Paywall Core     | S1–S2   | ✅ Complete | 2026-07-13 — entitlements, Stripe, lifecycle FSM, purge sweep, plan UI |
-| P2 Form Builder     | S3–S4   | Next        | S3: form-engine port, forms API, builder studio                        |
+| P2 Form Builder     | S3–S4   | In progress | S3 done (engine, forms API, builder); S4: public pages + submissions   |
 | P3 SmartMapper      | S5–S6   | Not started | —                                                                      |
 | P4 Workflow Builder | S7–S8   | Not started | —                                                                      |
 | P5 Library + Polish | S9      | Not started | —                                                                      |
@@ -88,13 +88,36 @@
 - Downgrade form-picker UX + export-all deferred to S4 (SB-014, SB-015 —
   need forms/submissions to exist)
 
+## Sprint 3 Task Status
+
+| #   | Task                        | Status  | Notes                                                                   |
+| --- | --------------------------- | ------- | ----------------------------------------------------------------------- |
+| 1   | Port @attune-sb/form-engine | ✅ Done | Logic verbatim; RN renderer replaced with DOM components; 42 tests      |
+| 2   | Forms API module            | ✅ Done | CRUD + DRAFT→PUBLISHED→ARCHIVED FSM, immutable versions, slug alloc     |
+| 3   | activeForms publish gating  | ✅ Done | Live-count via entitlements; LIMIT_EXCEEDED 402 with upgrade URL        |
+| 4   | Form builder studio UI      | ✅ Done | Zustand store, dnd-kit palette/canvas/inspector, live preview, autosave |
+| 5   | Forms list + nav            | ✅ Done | List page w/ status/version, create/delete; Forms nav enabled           |
+| 6   | Tests                       | ✅ Done | 24 forms API specs, 15 builder-store/forms-list web tests               |
+
+## Sprint 3 Verification (2026-07-13)
+
+- 154 API tests across 9 suites; 32 web tests across 6 suites; 42 form-engine
+  tests across 4 suites — all green
+- Live API drill (trial org, cap 2): publish×2 OK → 3rd publish returns
+  `LIMIT_EXCEEDED {limit:2, current:2, upgradeUrl}` → unpublish frees the slot
+  → 3rd publishes → republish bumps to v2 with immutable v1+v2 snapshots
+- `GET /billing/usage` now reports live activeForms counts (2/2 at cap)
+- Builder UI click-through (create → drag fields → conditional rule → preview
+  → publish-at-cap upgrade prompt) — pending manual pass at Phase 2 close
+- dnd-kit dependency recorded in `docs/ADR/0001-dnd-kit-for-form-builder.md`
+
 ## Quality Gates
 
-| Gate              | Target | Current                                                          |
-| ----------------- | ------ | ---------------------------------------------------------------- |
-| API test coverage | 80%    | Improving — 8 suites / 130 tests; paywall + lifecycle exhaustive |
-| Web test coverage | 70%    | Started — 4 suites / 18 tests (billing components)               |
-| CI status         | Green  | Workflow added S0; validating on pushes                          |
+| Gate              | Target | Current                                                           |
+| ----------------- | ------ | ----------------------------------------------------------------- |
+| API test coverage | 80%    | Improving — 9 suites / 154 tests; paywall + lifecycle + forms FSM |
+| Web test coverage | 70%    | Growing — 6 suites / 32 tests (+ 42 engine tests in form-engine)  |
+| CI status         | Green  | Workflow added S0; validating on pushes                           |
 
 ## Unplanned Items
 
