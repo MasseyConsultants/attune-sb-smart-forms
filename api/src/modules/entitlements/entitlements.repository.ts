@@ -113,6 +113,13 @@ export class EntitlementsRepository {
     });
   }
 
+  /** Live count backing the uploadedTemplates counted resource. */
+  countUploadedTemplates(organizationId: string): Promise<number> {
+    return this.prisma.documentTemplate.count({
+      where: { organizationId, deletedAt: null },
+    });
+  }
+
   findOwnerEmail(organizationId: string): Promise<{ email: string } | null> {
     return this.prisma.user.findFirst({
       where: { organizationId, role: 'OWNER', isActive: true, deletedAt: null },

@@ -70,6 +70,13 @@ enum SubmissionStatus {
   OVER_LIMIT
 }
 
+enum DocumentTemplateStatus {
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+}
+
 // --- Tenancy ---
 
 model Organization {
@@ -98,6 +105,7 @@ model Organization {
   inviteTokens         InviteToken[]
   forms                Form[]
   submissions          Submission[]
+  documentTemplates    DocumentTemplate[]
 
   @@index([lifecycleState])
   @@index([deletedAt])
@@ -315,13 +323,52 @@ model Form {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  versions    FormVersion[]
-  submissions Submission[]
+  versions         FormVersion[]
+  submissions      Submission[]
+  documentTemplate DocumentTemplate?
 
   @@index([organizationId])
   @@index([organizationId, status])
   @@index([deletedAt])
   @@map("forms")
+}
+
+// SmartMapper: a customer's own PDF/DOCX form, mapped so submissions can fill
+// it. Org-scoped and counted against the plan's uploadedTemplates cap. One
+// template links to at most one form at v1 (mappings reference field ids).
+model DocumentTemplate {
+  id     String                 @id @default(uuid())
+  name   String
+  status DocumentTemplateStatus @default(UPLOADED)
+  // Populated when processing fails so the UI can explain, not just say FAILED.
+  failureReason String? @map("failure_reason")
+
+  // Blob keys: original upload + the PDF actually rendered/filled
+  // (identical for PDF uploads; converted copy for DOCX).
+  originalKey String @map("original_key")
+  pdfKey      String @map("pdf_key")
+  mimeType    String @map("mime_type")
+  sizeBytes   Int    @map("size_bytes")
+
+  pageCount Int @default(0) @map("page_count")
+  // JSON array of { width, height } per page, PDF points.
+  pageDimensions Json @default("[]") @map("page_dimensions")
+  // JSON array of FieldCoordinateMapping (shared-types contract).
+  fieldMappings Json @default("[]") @map("field_mappings")
+
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  formId         String?      @unique @map("form_id")
+  form           Form?        @relation(fields: [formId], references: [id])
+  createdById    String       @map("created_by_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([organizationId])
+  @@index([deletedAt])
+  @@map("document_templates")
 }
 
 // Public intake rows. OVER_LIMIT rows are quarantined (hidden from data views

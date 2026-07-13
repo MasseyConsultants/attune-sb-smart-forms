@@ -28,6 +28,7 @@ import { LifecycleRepository, OrgWithSubscription } from './lifecycle.repository
 
 import { AppCacheService } from '@/modules/common/cache/app-cache.service';
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
+import { BlobStorageService } from '@/modules/common/storage/blob-storage.service';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
 import { EmailService } from '@/modules/notifications/email.service';
 
@@ -53,6 +54,7 @@ export class LifecycleService {
     private readonly config: ConfigService,
     private readonly emailService: EmailService,
     private readonly entitlements: EntitlementsService,
+    private readonly storage: BlobStorageService,
     private readonly logger: SecureLoggerService,
   ) {}
 
@@ -258,7 +260,7 @@ export class LifecycleService {
     return { phase1, phase2, legalHoldSkips };
   }
 
-  /** Phase 1: blobs first (S5+ — no blob stores exist yet), soft-delete rows, tombstone. */
+  /** Phase 1: blobs first (the expensive part), soft-delete rows, tombstone. */
   private async purgePhase1(
     organizationId: string,
     org: { name: string; purgeRequestedAt: Date | null; lifecycleState: OrgLifecycleState },
@@ -279,6 +281,10 @@ export class LifecycleService {
       entityCounts: counts,
       purgedAt: now,
     });
+
+    // Blobs first — deletePrefix is idempotent, so a re-run after a partial
+    // failure converges.
+    await this.storage.deletePrefix(`document-templates/${organizationId}`);
 
     const hardDeleteAt = new Date(now.getTime() + HARD_DELETE_DELAY_DAYS * DAY_MS);
     await this.repository.softDeleteOrgData(organizationId, now, hardDeleteAt);

@@ -26,6 +26,9 @@ Thumbs.db
 test-results/
 playwright-report/
 
+# Local blob storage (SmartMapper uploads)
+api/storage/
+
 # Starter bundle kept for reference only
 repo-seed/
 

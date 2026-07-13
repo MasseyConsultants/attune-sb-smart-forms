@@ -259,10 +259,11 @@ export class EntitlementsService {
           used: await this.repository.countPublishedForms(organizationId),
           limit: snapshot.definition.limits.activeForms,
         };
-      // SmartMapper templates land in S5 — until that table exists the count
-      // is structurally zero.
       case 'uploadedTemplates':
-        return { used: 0, limit: snapshot.definition.limits.uploadedTemplates };
+        return {
+          used: await this.repository.countUploadedTemplates(organizationId),
+          limit: snapshot.definition.limits.uploadedTemplates,
+        };
       default: {
         const exhaustive: never = resource;
         throw new Error(`Unhandled counted resource: ${String(exhaustive)}`);

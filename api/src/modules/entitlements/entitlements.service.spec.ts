@@ -28,6 +28,7 @@ const repository = {
   markSoftWarned: jest.fn(),
   countActiveUsers: jest.fn(),
   countPublishedForms: jest.fn().mockResolvedValue(0),
+  countUploadedTemplates: jest.fn().mockResolvedValue(0),
   findOwnerEmail: jest.fn().mockResolvedValue({ email: 'owner@example.com' }),
 };
 

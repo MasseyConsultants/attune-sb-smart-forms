@@ -169,14 +169,31 @@ export class LifecycleRepository {
   }
 
   async countOrgEntities(organizationId: string): Promise<Record<string, number>> {
-    const users = await this.prisma.user.count({ where: { organizationId } });
-    // Forms/submissions/templates counted here as their tables land (S3+).
-    return { users };
+    const [users, forms, submissions, documentTemplates] = await this.prisma.$transaction([
+      this.prisma.user.count({ where: { organizationId } }),
+      this.prisma.form.count({ where: { organizationId } }),
+      this.prisma.submission.count({ where: { organizationId } }),
+      this.prisma.documentTemplate.count({ where: { organizationId } }),
+    ]);
+    return { users, forms, submissions, documentTemplates };
   }
 
   softDeleteOrgData(organizationId: string, now: Date, hardDeleteAt: Date): Promise<unknown> {
     return this.prisma.$transaction([
       this.prisma.user.updateMany({
+        where: { organizationId, deletedAt: null },
+        data: { deletedAt: now },
+      }),
+      // Unpublish so /f/[slug] 404s immediately, then soft-delete.
+      this.prisma.form.updateMany({
+        where: { organizationId, deletedAt: null },
+        data: { deletedAt: now, status: 'ARCHIVED' },
+      }),
+      this.prisma.submission.updateMany({
+        where: { organizationId, deletedAt: null },
+        data: { deletedAt: now },
+      }),
+      this.prisma.documentTemplate.updateMany({
         where: { organizationId, deletedAt: null },
         data: { deletedAt: now },
       }),
@@ -241,6 +258,10 @@ export class LifecycleRepository {
       this.prisma.usageEvent.deleteMany({ where: { organizationId } }),
       this.prisma.usageCounter.deleteMany({ where: { organizationId } }),
       this.prisma.entitlementOverride.deleteMany({ where: { organizationId } }),
+      // FK order: children before forms, forms before organization.
+      this.prisma.submission.deleteMany({ where: { organizationId } }),
+      this.prisma.documentTemplate.deleteMany({ where: { organizationId } }),
+      this.prisma.form.deleteMany({ where: { organizationId } }),
       this.prisma.user.deleteMany({ where: { organizationId } }),
       this.prisma.subscription.deleteMany({ where: { organizationId } }),
       this.prisma.organization.delete({ where: { id: organizationId } }),

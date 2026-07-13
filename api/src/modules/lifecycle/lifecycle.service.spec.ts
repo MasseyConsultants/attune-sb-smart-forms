@@ -42,6 +42,7 @@ const entitlements = {
   invalidate: jest.fn(),
   getPlanSnapshot: jest.fn().mockResolvedValue({ planId: 'trial' }),
 };
+const storage = { deletePrefix: jest.fn().mockResolvedValue(undefined) };
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 const NOW = new Date('2026-08-01T12:00:00Z');
@@ -54,6 +55,7 @@ function makeService(): LifecycleService {
     config as any,
     emailService as any,
     entitlements as any,
+    storage as any,
     logger as any,
   );
 }
