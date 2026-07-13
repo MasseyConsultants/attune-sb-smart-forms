@@ -4,12 +4,14 @@
 > Self-serve, subscription-based forms + documents + workflow SaaS for small
 > businesses. Derivative of the enterprise `attune-smart-forms` platform.
 
-**Status:** Phase 3 in progress (v0.1.0) — self-serve signup with 14-day
+**Status:** Phase 3 complete (v0.1.0) — self-serve signup with 14-day
 trial, entitlement/metering paywall, Stripe billing scaffolding, org data
 lifecycle, form builder with 30 field types, versioned publishing, public fill
 pages, submissions with quarantine-not-drop metering, CSV/Excel export, and
-SmartMapper templates: upload your existing PDF/DOCX form and visually map
-fields onto it (auto-mapping + document fill land in Sprint 6).
+the full SmartMapper moat: upload your existing PDF/DOCX form, auto-map fields
+onto it (fuzzy label matching with a visual review step), and every public
+submission fills your exact PDF — metered, stored, and downloadable from the
+data view. Phase 4 (workflow builder) is next.
 
 ## Stack
 

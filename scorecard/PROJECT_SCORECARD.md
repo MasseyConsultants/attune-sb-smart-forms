@@ -5,22 +5,22 @@
 
 ## Current Status
 
-- **Phase:** P3 SmartMapper — first half ✅ (S5 done 2026-07-13); S6 next
-  (auto-mapping + fill runtime)
-- **Current sprint:** Sprint 6 next (`planning/SPRINT_06.md`)
+- **Phase:** P3 SmartMapper ✅ complete (S6 done 2026-07-13); P4 Workflow
+  Builder next
+- **Current sprint:** Sprint 7 next (`planning/SPRINT_07.md`)
 - **Version:** 0.1.0
 
 ## Phase Progress
 
-| Phase               | Sprints | Status      | Notes                                                                   |
-| ------------------- | ------- | ----------- | ----------------------------------------------------------------------- |
-| P0 Foundation       | S0      | ✅ Complete | 2026-07-12 — auth, branding, CI, seed green                             |
-| P1 Paywall Core     | S1–S2   | ✅ Complete | 2026-07-13 — entitlements, Stripe, lifecycle FSM, purge sweep, plan UI  |
-| P2 Form Builder     | S3–S4   | ✅ Complete | 2026-07-13 — engine, forms API, builder, public fill, submissions       |
-| P3 SmartMapper      | S5–S6   | 🔶 S5 done  | 2026-07-13 — upload pipeline, canvas, mapping studio; S6: auto-map+fill |
-| P4 Workflow Builder | S7–S8   | Not started | —                                                                       |
-| P5 Library + Polish | S9      | Not started | —                                                                       |
-| P6 Launch Hardening | S10–S11 | Not started | —                                                                       |
+| Phase               | Sprints | Status      | Notes                                                                  |
+| ------------------- | ------- | ----------- | ---------------------------------------------------------------------- |
+| P0 Foundation       | S0      | ✅ Complete | 2026-07-12 — auth, branding, CI, seed green                            |
+| P1 Paywall Core     | S1–S2   | ✅ Complete | 2026-07-13 — entitlements, Stripe, lifecycle FSM, purge sweep, plan UI |
+| P2 Form Builder     | S3–S4   | ✅ Complete | 2026-07-13 — engine, forms API, builder, public fill, submissions      |
+| P3 SmartMapper      | S5–S6   | ✅ Complete | 2026-07-13 — upload, canvas, auto-map, fill runtime, storage metering  |
+| P4 Workflow Builder | S7–S8   | Not started | —                                                                      |
+| P5 Library + Polish | S9      | Not started | —                                                                      |
+| P6 Launch Hardening | S10–S11 | Not started | —                                                                      |
 
 ## Sprint 0 Task Status
 
@@ -163,12 +163,39 @@
 - SmartMapper mapping types centralized in `@attune-sb/shared-types`
   (enterprise had them duplicated in API + admin UI)
 
+## Sprint 6 Task Status
+
+| #   | Task                    | Status  | Notes                                                                       |
+| --- | ----------------------- | ------- | --------------------------------------------------------------------------- |
+| 1   | Stage 1 auto-mapping    | ✅ Done | pdfjs extract + fuzzball match, suggest-mappings endpoint, scanned-PDF gate |
+| 2   | Candidate review UI     | ✅ Done | Canvas overlays w/ accept/reject/nudge, candidates panel, bulk actions      |
+| 3   | Document fill runtime   | ✅ Done | pdf-lib stamping (value/checkmark/highlight/signature), intake hook         |
+| 4   | DOC_FILLS metering      | ✅ Done | Assert-before/consume-after; at cap fill skipped, submission never dropped  |
+| 5   | STORAGE_BYTES live sums | ✅ Done | Templates + fills aggregate; upload asserts headroom; deletes reclaim       |
+| 6   | Tests                   | ✅ Done | 40 new API specs (fuzzy/geometry/filler/fills/extract), 10 new web specs    |
+| 7   | Phase 3 close           | ✅ Done | E2E smoke script green; retro + S7 draft written                            |
+
+## Sprint 6 Verification (2026-07-13)
+
+- 225 API tests across 17 suites; 61 web tests across 12 suites; 42 form-engine
+  tests — all green; lint + typecheck clean
+- Live E2E smoke (`scripts/smoke-sprint6.ps1`): 10-field form + fixture PDF →
+  auto-map suggested 10/10 (100% ≥ 70% acceptance bar) → mappings saved →
+  publish → public submission → filled PDF stored + downloaded; text extraction
+  of the output confirmed every value stamped beside its label
+- Meters after the run: DOC_FILLS 1/10, SUBMISSIONS 3/50, STORAGE_BYTES 3,166
+  bytes (template 1,230 + fill 1,936 — live sum verified after cache TTL)
+- Trial caps exercised incidentally: `uploadedTemplates` 1/1 and
+  `activeForms` 2/2 both returned `LIMIT_EXCEEDED` with upgrade URL mid-drill
+- `normalizeLabel` parenthetical-stripping bug found in the enterprise source
+  fixed here with a regression test
+
 ## Quality Gates
 
 | Gate              | Target | Current                                                               |
 | ----------------- | ------ | --------------------------------------------------------------------- |
-| API test coverage | 80%    | Improving — 12 suites / 185 tests; paywall + lifecycle + forms + docs |
-| Web test coverage | 70%    | Growing — 10 suites / 51 tests (+ 42 engine tests in form-engine)     |
+| API test coverage | 80%    | Improving — 17 suites / 225 tests; paywall + lifecycle + forms + docs |
+| Web test coverage | 70%    | Growing — 12 suites / 61 tests (+ 42 engine tests in form-engine)     |
 | CI status         | Green  | Workflow added S0; validating on pushes                               |
 
 ## Unplanned Items
