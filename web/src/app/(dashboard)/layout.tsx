@@ -1,7 +1,7 @@
 // Author: Robert Massey | Created: 2026-07-12 | Module: Web / Dashboard Layout
-// Purpose: Authenticated app shell — themed sidebar + topbar. Sprint 0 version is
-// deliberately lean: nav entries for future sections render as disabled placeholders
-// until their sprints land (forms S3, documents S5, workflows S7, billing S2).
+// Purpose: Authenticated app shell — themed sidebar + topbar. Nav is grouped
+// into labeled sections (Build / Data / Workspace, plus Platform for
+// PLATFORM_ADMIN) so the menu reads as a map of the product, not a flat list.
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -29,49 +29,47 @@ interface NavItem {
   readonly label: string;
   readonly href: string;
   readonly icon: React.ReactNode;
-  readonly enabled: boolean;
 }
 
-const NAV_ITEMS: ReadonlyArray<NavItem> = [
+interface NavSection {
+  /** Empty label = unlabeled top group (Dashboard). */
+  readonly label: string;
+  readonly items: ReadonlyArray<NavItem>;
+}
+
+const NAV_SECTIONS: ReadonlyArray<NavSection> = [
   {
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: <LayoutDashboard className="h-4 w-4" />,
-    enabled: true,
-  },
-  { label: 'Forms', href: '/forms', icon: <FileText className="h-4 w-4" />, enabled: true },
-  {
-    label: 'Submissions',
-    href: '/submissions',
-    icon: <Inbox className="h-4 w-4" />,
-    enabled: true,
-  },
-  {
-    label: 'Templates',
-    href: '/templates',
-    icon: <FileStack className="h-4 w-4" />,
-    enabled: true,
+    label: '',
+    items: [
+      { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+    ],
   },
   {
-    label: 'Workflows',
-    href: '/workflows',
-    icon: <Workflow className="h-4 w-4" />,
-    enabled: true,
+    label: 'Build',
+    items: [
+      { label: 'Forms', href: '/forms', icon: <FileText className="h-4 w-4" /> },
+      { label: 'Workflows', href: '/workflows', icon: <Workflow className="h-4 w-4" /> },
+      { label: 'Templates', href: '/templates', icon: <FileStack className="h-4 w-4" /> },
+      { label: 'Library', href: '/library', icon: <LibraryBig className="h-4 w-4" /> },
+    ],
   },
   {
-    label: 'Library',
-    href: '/library',
-    icon: <LibraryBig className="h-4 w-4" />,
-    enabled: true,
+    label: 'Data',
+    items: [{ label: 'Submissions', href: '/submissions', icon: <Inbox className="h-4 w-4" /> }],
   },
-  { label: 'Team', href: '/team', icon: <Users className="h-4 w-4" />, enabled: true },
   {
-    label: 'Billing',
-    href: '/billing',
-    icon: <CreditCard className="h-4 w-4" />,
-    enabled: true,
+    label: 'Workspace',
+    items: [
+      { label: 'Team', href: '/team', icon: <Users className="h-4 w-4" /> },
+      { label: 'Billing', href: '/billing', icon: <CreditCard className="h-4 w-4" /> },
+    ],
   },
 ];
+
+const ADMIN_SECTION: NavSection = {
+  label: 'Platform',
+  items: [{ label: 'Admin', href: '/admin', icon: <ShieldCheck className="h-4 w-4" /> }],
+};
 
 export default async function DashboardLayout({
   children,
@@ -83,18 +81,8 @@ export default async function DashboardLayout({
     apiGet<UserProfile>('/users/me'),
   ]);
 
-  const navItems: NavItem[] =
-    me?.role === 'PLATFORM_ADMIN'
-      ? [
-          ...NAV_ITEMS,
-          {
-            label: 'Admin',
-            href: '/admin',
-            icon: <ShieldCheck className="h-4 w-4" />,
-            enabled: true,
-          },
-        ]
-      : [...NAV_ITEMS];
+  const sections: NavSection[] =
+    me?.role === 'PLATFORM_ADMIN' ? [...NAV_SECTIONS, ADMIN_SECTION] : [...NAV_SECTIONS];
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -113,28 +101,26 @@ export default async function DashboardLayout({
             priority
           />
         </div>
-        <nav className="relative z-10 flex-1 space-y-1 p-3">
-          {navItems.map((item) =>
-            item.enabled ? (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/10"
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            ) : (
-              <span
-                key={item.href}
-                className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm font-medium opacity-40"
-                title="Coming soon"
-              >
-                {item.icon}
-                {item.label}
-              </span>
-            ),
-          )}
+        <nav className="relative z-10 flex-1 space-y-4 overflow-y-auto p-3">
+          {sections.map((section) => (
+            <div key={section.label || 'top'} className="space-y-1">
+              {section.label && (
+                <p className="px-3 pt-1 text-[10px] font-semibold uppercase tracking-widest opacity-50">
+                  {section.label}
+                </p>
+              )}
+              {section.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/10"
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          ))}
         </nav>
         <div className="relative z-10 border-t border-sidebar-border p-3">
           <LogoutButton />

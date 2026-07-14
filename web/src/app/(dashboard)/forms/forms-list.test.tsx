@@ -75,6 +75,50 @@ describe('FormsList', () => {
     expect(screen.getByText('2 forms')).toBeInTheDocument();
   });
 
+  it('offers view/edit/delete actions per row; view only for published forms', async () => {
+    mockFetchForms([
+      {
+        id: 'f-1',
+        name: 'Customer Intake',
+        description: null,
+        slug: 'abc',
+        status: FormStatus.PUBLISHED,
+        version: 3,
+        organizationId: 'org-1',
+        schema: null,
+        createdAt: '2026-07-13T00:00:00Z',
+        updatedAt: '2026-07-13T00:00:00Z',
+      },
+      {
+        id: 'f-2',
+        name: 'Feedback',
+        description: null,
+        slug: 'def',
+        status: FormStatus.DRAFT,
+        version: 1,
+        organizationId: 'org-1',
+        schema: null,
+        createdAt: '2026-07-13T00:00:00Z',
+        updatedAt: '2026-07-13T00:00:00Z',
+      },
+    ]);
+    renderList();
+
+    // Published: View is a live public-form link opening a new tab.
+    const view = await screen.findByRole('link', { name: 'View Customer Intake' });
+    expect(view).toHaveAttribute('href', '/f/abc');
+    expect(view).toHaveAttribute('target', '_blank');
+
+    // Draft: View is disabled until the form is published.
+    expect(screen.getByRole('button', { name: 'View Feedback' })).toBeDisabled();
+
+    expect(screen.getByRole('link', { name: 'Edit Customer Intake' })).toHaveAttribute(
+      'href',
+      '/forms/f-1',
+    );
+    expect(screen.getByRole('button', { name: 'Delete Customer Intake' })).toBeEnabled();
+  });
+
   it('surfaces load failures', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

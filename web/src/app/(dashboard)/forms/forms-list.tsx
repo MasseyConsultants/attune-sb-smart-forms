@@ -1,10 +1,10 @@
 // Author: Robert Massey | Created: 2026-07-13 | Module: Web / Forms List
-// Purpose: Client list of the org's forms with create, duplicate, and delete.
+// Purpose: Client list of the org's forms with create, view, edit, and delete.
 // The submissions column links into each form's data view.
 
 'use client';
 
-import { FileText, Loader2, Plus } from 'lucide-react';
+import { Eye, FileText, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -35,7 +35,7 @@ function FormRow({ form }: { readonly form: Form }): React.ReactElement {
           {form.name}
         </Link>
         {form.description && (
-          <p className="truncate text-xs text-muted-foreground">{form.description}</p>
+          <p className="max-w-md truncate text-xs text-muted-foreground">{form.description}</p>
         )}
       </td>
       <td className="px-4 py-3">
@@ -50,20 +50,71 @@ function FormRow({ form }: { readonly form: Form }): React.ReactElement {
           {form.submissionCount ?? 0}
         </Link>
       </td>
-      <td className="px-4 py-3 text-right">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground hover:text-destructive"
-          disabled={deleteForm.isPending}
-          onClick={() => {
-            if (window.confirm(`Delete "${form.name}"? This cannot be undone from the UI.`)) {
-              deleteForm.mutate(form.id);
-            }
-          }}
-        >
-          Delete
-        </Button>
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-end gap-1">
+          {form.status === FormStatus.PUBLISHED ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+            >
+              <a
+                href={`/f/${form.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`View ${form.name}`}
+                title="View the live form (opens in a new tab)"
+              >
+                <Eye className="h-4 w-4" />
+              </a>
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground"
+              disabled
+              aria-label={`View ${form.name}`}
+              title="Publish the form to get a public link"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+          >
+            <Link
+              href={`/forms/${form.id}`}
+              aria-label={`Edit ${form.name}`}
+              title="Open in the form builder"
+            >
+              <Pencil className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+            disabled={deleteForm.isPending}
+            aria-label={`Delete ${form.name}`}
+            title="Delete this form"
+            onClick={() => {
+              if (window.confirm(`Delete "${form.name}"? This cannot be undone from the UI.`)) {
+                deleteForm.mutate(form.id);
+              }
+            }}
+          >
+            {deleteForm.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </td>
     </tr>
   );
@@ -143,7 +194,7 @@ export function FormsList(): React.ReactElement {
           </Button>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-left">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -151,7 +202,7 @@ export function FormsList(): React.ReactElement {
                 <th className="px-4 py-2 font-medium">Status</th>
                 <th className="px-4 py-2 font-medium">Version</th>
                 <th className="px-4 py-2 font-medium">Submissions</th>
-                <th className="px-4 py-2" />
+                <th className="px-4 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
