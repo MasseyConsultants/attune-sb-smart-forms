@@ -120,7 +120,12 @@ describe('ConditionStepAdapter', () => {
 
 describe('EmailStepAdapter', () => {
   // Reason: structural mocks stand in for Nest providers in unit tests.
-  const adapter = new EmailStepAdapter(email as any, entitlements as any, logger as any);
+  const adapter = new EmailStepAdapter(
+    email as any,
+    entitlements as any,
+    storage as any,
+    logger as any,
+  );
 
   it('interpolates recipient/subject/body and consumes EMAILS idempotently', async () => {
     const result = await adapter.execute(
@@ -157,6 +162,39 @@ describe('EmailStepAdapter', () => {
     const result = await adapter.execute(ctx('email', {}));
     expect(result.status).toBe('failed');
     expect(email.send).not.toHaveBeenCalled();
+  });
+
+  it('attaches the run document when attachDocument is on', async () => {
+    const pdf = await fixturePdf();
+    storage.download.mockResolvedValue(pdf);
+
+    const result = await adapter.execute(
+      ctx(
+        'email',
+        { to: 'a@b.c', attachDocument: true },
+        { filledDocumentKey: 'workflow-artifacts/org-1/run-1/n-pdf.pdf' },
+      ),
+    );
+
+    expect(result.status).toBe('completed');
+    expect(result.outputData?.emailAttachedDocument).toBe(true);
+    expect(storage.download).toHaveBeenCalledWith('workflow-artifacts/org-1/run-1/n-pdf.pdf');
+    const payload = email.send.mock.calls[0][0];
+    expect(payload.attachments).toHaveLength(1);
+    expect(payload.attachments[0].contentType).toBe('application/pdf');
+  });
+
+  it('fails with a pointer when attachDocument is on but no PDF exists', async () => {
+    const result = await adapter.execute(ctx('email', { to: 'a@b.c', attachDocument: true }));
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('Generate PDF or Fill document node before');
+    expect(email.send).not.toHaveBeenCalled();
+  });
+
+  it('sends without attachments when attachDocument is off', async () => {
+    await adapter.execute(ctx('email', { to: 'a@b.c' }, { filledDocumentKey: 'some/key.pdf' }));
+    expect(email.send.mock.calls[0][0].attachments).toBeUndefined();
+    expect(storage.download).not.toHaveBeenCalled();
   });
 });
 

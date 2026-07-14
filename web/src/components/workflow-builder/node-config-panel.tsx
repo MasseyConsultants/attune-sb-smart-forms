@@ -114,6 +114,33 @@ function Text({
   );
 }
 
+function Checkbox({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}): React.ReactElement {
+  return (
+    <label className="flex cursor-pointer items-start gap-2">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-3.5 w-3.5 accent-[var(--brand-primary,#F97316)]"
+      />
+      <span className="space-y-0.5">
+        <span className="block text-[11px] font-medium">{label}</span>
+        {hint && <span className="block text-[10px] text-muted-foreground">{hint}</span>}
+      </span>
+    </label>
+  );
+}
+
 function Select({
   label,
   value,
@@ -266,6 +293,12 @@ function ConfigFields({
             placeholder={'Hi,\n\n{{name}} just submitted the form.'}
             multiline
             tokens={textTokens}
+          />
+          <Checkbox
+            label="Attach the generated PDF"
+            hint="Requires a Generate PDF or Fill document step earlier in the flow."
+            checked={data['attachDocument'] === true}
+            onChange={(v) => onChange('attachDocument', v)}
           />
         </>
       );
