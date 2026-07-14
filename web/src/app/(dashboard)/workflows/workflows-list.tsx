@@ -9,7 +9,7 @@ import { useState } from 'react';
 
 import type { WorkflowSummary } from '@attune-sb/shared-types';
 import { WorkflowStatus } from '@attune-sb/shared-types';
-import { Activity, Loader2, Plus, Trash2, Workflow as WorkflowIcon } from 'lucide-react';
+import { Activity, Loader2, Pencil, Plus, Trash2, Workflow as WorkflowIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -152,7 +152,7 @@ export function WorkflowsList(): React.ReactElement {
                 <th className="px-4 py-2.5 font-medium">Status</th>
                 <th className="px-4 py-2.5 font-medium">Trigger form</th>
                 <th className="px-4 py-2.5 font-medium">Runs</th>
-                <th className="px-4 py-2.5" />
+                <th className="px-4 py-2.5 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -202,16 +202,32 @@ export function WorkflowsList(): React.ReactElement {
                         </Link>
                       </Button>
                       <Button
+                        asChild
                         size="sm"
                         variant="ghost"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      >
+                        <Link
+                          href={`/workflows/${workflow.id}`}
+                          aria-label={`Edit ${workflow.name}`}
+                          title="Open in the workflow builder"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
                         onClick={() => handleDelete(workflow)}
                         disabled={deletingId === workflow.id}
                         aria-label={`Delete ${workflow.name}`}
+                        title="Delete this workflow"
                       >
                         {deletingId === workflow.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         )}
                       </Button>
                     </div>
