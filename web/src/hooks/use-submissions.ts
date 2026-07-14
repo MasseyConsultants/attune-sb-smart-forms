@@ -43,6 +43,53 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return envelope.data;
 }
 
+export interface OrgSubmissionItem extends SubmissionListItem {
+  readonly formName: string;
+  readonly formCreatedById: string;
+}
+
+export interface PaginatedOrgSubmissions {
+  readonly submissions: OrgSubmissionItem[];
+  readonly total: number;
+  readonly quarantinedCount: number;
+}
+
+export interface OrgSubmissionsFilters {
+  readonly formId?: string;
+  readonly createdById?: string;
+  readonly q?: string;
+}
+
+function orgQueryString(filters: OrgSubmissionsFilters, page: number, pageSize: number): string {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (filters.formId) params.set('formId', filters.formId);
+  if (filters.createdById) params.set('createdById', filters.createdById);
+  if (filters.q?.trim()) params.set('q', filters.q.trim());
+  return params.toString();
+}
+
+/** Org-wide data view across every form. */
+export function useOrgSubmissions(filters: OrgSubmissionsFilters, page: number, pageSize = 25) {
+  return useQuery({
+    queryKey: ['submissions', 'org', filters, page, pageSize],
+    queryFn: () =>
+      fetchJson<PaginatedOrgSubmissions>(
+        `/api/submissions?${orgQueryString(filters, page, pageSize)}`,
+      ),
+    staleTime: 5_000,
+  });
+}
+
+/** Org-wide CSV export URL honouring the active filters. */
+export function orgExportUrl(filters: OrgSubmissionsFilters): string {
+  const params = new URLSearchParams();
+  if (filters.formId) params.set('formId', filters.formId);
+  if (filters.createdById) params.set('createdById', filters.createdById);
+  if (filters.q?.trim()) params.set('q', filters.q.trim());
+  const query = params.toString();
+  return `/api/submissions/export${query ? `?${query}` : ''}`;
+}
+
 export function useSubmissionsList(formId: string, page: number, pageSize = 25) {
   return useQuery({
     queryKey: ['submissions', formId, page, pageSize],

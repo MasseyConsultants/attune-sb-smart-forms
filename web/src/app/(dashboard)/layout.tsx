@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   FileText,
   FileStack,
+  Inbox,
   Workflow,
   CreditCard,
   Users,
@@ -20,6 +21,7 @@ import type { OrganizationProfile, UserProfile } from '@attune-sb/shared-types';
 import { BRAND } from '@/lib/brand';
 import { apiGet } from '@/lib/api-server';
 import { ReadOnlyBanner } from '@/components/billing/read-only-banner';
+import { SidebarDecorations } from '@/components/brand/sidebar-decorations';
 import { NotificationsBell } from '@/components/notifications/notifications-bell';
 import { LogoutButton } from './logout-button';
 
@@ -38,6 +40,12 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
     enabled: true,
   },
   { label: 'Forms', href: '/forms', icon: <FileText className="h-4 w-4" />, enabled: true },
+  {
+    label: 'Submissions',
+    href: '/submissions',
+    icon: <Inbox className="h-4 w-4" />,
+    enabled: true,
+  },
   {
     label: 'Templates',
     href: '/templates',
@@ -91,8 +99,9 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="sidebar-grid hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
-        <div className="flex h-16 items-center border-b border-sidebar-border px-5">
+      <aside className="relative hidden w-60 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
+        <SidebarDecorations />
+        <div className="relative z-10 flex h-16 items-center border-b border-sidebar-border px-5">
           <Image
             src={BRAND.logoSidebar}
             alt={BRAND.appName}
@@ -104,7 +113,7 @@ export default async function DashboardLayout({
             priority
           />
         </div>
-        <nav className="flex-1 space-y-1 p-3">
+        <nav className="relative z-10 flex-1 space-y-1 p-3">
           {navItems.map((item) =>
             item.enabled ? (
               <Link
@@ -127,7 +136,7 @@ export default async function DashboardLayout({
             ),
           )}
         </nav>
-        <div className="border-t border-sidebar-border p-3">
+        <div className="relative z-10 border-t border-sidebar-border p-3">
           <LogoutButton />
         </div>
       </aside>

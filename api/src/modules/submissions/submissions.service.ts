@@ -22,8 +22,9 @@ import {
 } from '@prisma/client';
 
 import type { CreateSubmissionDto } from './dto/create-submission.dto';
+import type { ListOrgSubmissionsQueryDto } from './dto/list-org-submissions-query.dto';
 import type { ListSubmissionsQueryDto } from './dto/list-submissions-query.dto';
-import { SubmissionsRepository } from './submissions.repository';
+import { OrgSubmissionRow, SubmissionsRepository } from './submissions.repository';
 
 import type { AuthenticatedUser } from '@/modules/auth/strategies/jwt.strategy';
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
@@ -48,6 +49,18 @@ export interface PaginatedSubmissionDtos {
   readonly submissions: SubmissionDto[];
   readonly total: number;
   /** Rows accepted over the plan cap, hidden until the plan has room. */
+  readonly quarantinedCount: number;
+}
+
+/** Org-wide view row — a submission plus the form it belongs to. */
+export interface OrgSubmissionDto extends SubmissionDto {
+  readonly formName: string;
+  readonly formCreatedById: string;
+}
+
+export interface PaginatedOrgSubmissionDtos {
+  readonly submissions: OrgSubmissionDto[];
+  readonly total: number;
   readonly quarantinedCount: number;
 }
 
@@ -77,6 +90,14 @@ function toDto(submission: Submission): SubmissionDto {
     submittedAt: submission.submittedAt,
     createdAt: submission.createdAt,
     hasFilledDocument: submission.filledDocumentKey !== null,
+  };
+}
+
+function toOrgDto(row: OrgSubmissionRow): OrgSubmissionDto {
+  return {
+    ...toDto(row),
+    formName: row.form.name,
+    formCreatedById: row.form.createdById,
   };
 }
 
@@ -216,6 +237,49 @@ export class SubmissionsService {
     ]);
 
     return { submissions: submissions.map(toDto), total, quarantinedCount };
+  }
+
+  /** Org-wide data view: every form's submissions with filters + search. */
+  async findAllForOrg(
+    query: ListOrgSubmissionsQueryDto,
+    user: AuthenticatedUser,
+  ): Promise<PaginatedOrgSubmissionDtos> {
+    await this.maybeReleaseQuarantine(user.organizationId);
+
+    const matchIds = await this.resolveSearchIds(user.organizationId, query.q);
+    if (matchIds !== undefined && matchIds.length === 0) {
+      return { submissions: [], total: 0, quarantinedCount: 0 };
+    }
+
+    const [{ submissions, total }, quarantinedCount] = await Promise.all([
+      this.repository.findManyForOrg(user.organizationId, query, matchIds),
+      this.repository.countQuarantined(user.organizationId, query.formId),
+    ]);
+    return { submissions: submissions.map(toOrgDto), total, quarantinedCount };
+  }
+
+  /** Rows for the org-wide CSV — heterogeneous forms, so values ship as JSON. */
+  async exportOrgData(
+    query: ListOrgSubmissionsQueryDto,
+    user: AuthenticatedUser,
+  ): Promise<OrgSubmissionDto[]> {
+    const matchIds = await this.resolveSearchIds(user.organizationId, query.q);
+    if (matchIds !== undefined && matchIds.length === 0) {
+      return [];
+    }
+    const rows = await this.repository.findAllForOrgExport(user.organizationId, query, matchIds);
+    return rows.map(toOrgDto);
+  }
+
+  /** undefined = no search active; [] = search matched nothing. */
+  private resolveSearchIds(
+    organizationId: string,
+    q: string | undefined,
+  ): Promise<string[] | undefined> {
+    if (!q?.trim()) {
+      return Promise.resolve(undefined);
+    }
+    return this.repository.searchSubmissionIds(organizationId, q.trim());
   }
 
   async findOne(id: string, user: AuthenticatedUser): Promise<SubmissionDto> {

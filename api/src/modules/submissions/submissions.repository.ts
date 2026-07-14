@@ -13,12 +13,23 @@ import {
   SubmissionStatus,
 } from '@prisma/client';
 
+import type { ListOrgSubmissionsQueryDto } from './dto/list-org-submissions-query.dto';
 import type { ListSubmissionsQueryDto } from './dto/list-submissions-query.dto';
 
 import { PrismaService } from '@/modules/common/prisma/prisma.service';
 
 export interface PaginatedSubmissions {
   readonly submissions: Submission[];
+  readonly total: number;
+}
+
+/** Submission joined with the identifying facts of its form. */
+export type OrgSubmissionRow = Submission & {
+  form: { name: string; createdById: string };
+};
+
+export interface PaginatedOrgSubmissions {
+  readonly submissions: OrgSubmissionRow[];
   readonly total: number;
 }
 
@@ -88,6 +99,68 @@ export class SubmissionsRepository {
     ]);
 
     return { submissions, total };
+  }
+
+  /**
+   * Free-text search across submitted values. JSON has no schema to index,
+   * so this matches the serialized document — parameterized, org-scoped.
+   */
+  async searchSubmissionIds(organizationId: string, q: string): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT id FROM submissions
+        WHERE organization_id = ${organizationId}
+          AND deleted_at IS NULL
+          AND data::text ILIKE ${`%${q}%`}`,
+    );
+    return rows.map((r) => r.id);
+  }
+
+  private orgWhere(
+    organizationId: string,
+    query: ListOrgSubmissionsQueryDto,
+    matchIds?: string[],
+  ): Prisma.SubmissionWhereInput {
+    return {
+      organizationId,
+      deletedAt: null,
+      status: query.status ?? { not: SubmissionStatus.OVER_LIMIT },
+      ...(query.formId ? { formId: query.formId } : {}),
+      ...(query.createdById ? { form: { createdById: query.createdById } } : {}),
+      ...(matchIds ? { id: { in: matchIds } } : {}),
+    };
+  }
+
+  /** Org-wide data view: every form's submissions, filtered and paginated. */
+  async findManyForOrg(
+    organizationId: string,
+    query: ListOrgSubmissionsQueryDto,
+    matchIds?: string[],
+  ): Promise<PaginatedOrgSubmissions> {
+    const where = this.orgWhere(organizationId, query, matchIds);
+    const [submissions, total] = await this.prisma.$transaction([
+      this.prisma.submission.findMany({
+        where,
+        include: { form: { select: { name: true, createdById: true } } },
+        orderBy: { createdAt: query.sortOrder },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      this.prisma.submission.count({ where }),
+    ]);
+    return { submissions, total };
+  }
+
+  /** Every row matching the org-wide filters — for the org CSV export. */
+  findAllForOrgExport(
+    organizationId: string,
+    query: ListOrgSubmissionsQueryDto,
+    matchIds?: string[],
+  ): Promise<OrgSubmissionRow[]> {
+    return this.prisma.submission.findMany({
+      where: this.orgWhere(organizationId, query, matchIds),
+      include: { form: { select: { name: true, createdById: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 
   findById(id: string, organizationId: string): Promise<Submission | null> {

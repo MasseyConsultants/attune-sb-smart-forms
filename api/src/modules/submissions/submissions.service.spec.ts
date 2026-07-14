@@ -13,6 +13,9 @@ const repository = {
   findPublicTarget: jest.fn(),
   create: jest.fn(),
   findMany: jest.fn(),
+  findManyForOrg: jest.fn(),
+  findAllForOrgExport: jest.fn(),
+  searchSubmissionIds: jest.fn(),
   findById: jest.fn(),
   softDelete: jest.fn(),
   countQuarantined: jest.fn(),
@@ -327,5 +330,75 @@ describe('SubmissionsService — data views', () => {
     const { columns } = await makeService().exportData('form-1', USER as any);
 
     expect(columns.map((c) => c.id)).toEqual(['name', 'email', 'reason']);
+  });
+});
+
+describe('SubmissionsService — org-wide data view', () => {
+  const ORG_ROW = {
+    id: 'sub-1',
+    formId: 'form-1',
+    formVersion: 1,
+    data: { name: 'Ada' },
+    status: SubmissionStatus.SUBMITTED,
+    submittedAt: new Date(),
+    createdAt: new Date(),
+    filledDocumentKey: null,
+    form: { name: 'Intake', createdById: 'user-1' },
+  };
+
+  beforeEach(() => {
+    repository.findManyForOrg.mockResolvedValue({ submissions: [ORG_ROW], total: 1 });
+    repository.findAllForOrgExport.mockResolvedValue([ORG_ROW]);
+  });
+
+  it('lists across all forms with the form name and owner attached', async () => {
+    const result = await makeService().findAllForOrg({ page: 1, pageSize: 25 } as any, USER as any);
+
+    expect(repository.findManyForOrg).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({ page: 1 }),
+      undefined,
+    );
+    expect(result.submissions[0]).toMatchObject({
+      formName: 'Intake',
+      formCreatedById: 'user-1',
+    });
+  });
+
+  it('search resolves matching ids first and scopes the page to them', async () => {
+    repository.searchSubmissionIds.mockResolvedValue(['sub-1']);
+
+    await makeService().findAllForOrg({ page: 1, pageSize: 25, q: 'Ada' } as any, USER as any);
+
+    expect(repository.searchSubmissionIds).toHaveBeenCalledWith('org-1', 'Ada');
+    expect(repository.findManyForOrg).toHaveBeenCalledWith('org-1', expect.anything(), ['sub-1']);
+  });
+
+  it('short-circuits to empty when the search matches nothing', async () => {
+    repository.searchSubmissionIds.mockResolvedValue([]);
+
+    const result = await makeService().findAllForOrg(
+      { page: 1, pageSize: 25, q: 'nothing' } as any,
+      USER as any,
+    );
+
+    expect(result).toEqual({ submissions: [], total: 0, quarantinedCount: 0 });
+    expect(repository.findManyForOrg).not.toHaveBeenCalled();
+  });
+
+  it('org export honours the same filters as the list', async () => {
+    repository.searchSubmissionIds.mockResolvedValue(['sub-1']);
+
+    const rows = await makeService().exportOrgData(
+      { page: 1, pageSize: 25, formId: 'form-1', q: 'Ada' } as any,
+      USER as any,
+    );
+
+    expect(repository.findAllForOrgExport).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({ formId: 'form-1' }),
+      ['sub-1'],
+    );
+    expect(rows[0].formName).toBe('Intake');
   });
 });
