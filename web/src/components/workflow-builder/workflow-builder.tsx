@@ -20,7 +20,7 @@ import {
   useNodesState,
 } from '@xyflow/react';
 import type { Connection, Edge, Node } from '@xyflow/react';
-import { Activity, ChevronDown, Loader2, Lock, Rocket, Save, Undo2 } from 'lucide-react';
+import { Activity, ChevronDown, Loader2, Lock, Rocket, Save, Trash2, Undo2 } from 'lucide-react';
 import Link from 'next/link';
 
 import '@xyflow/react/dist/style.css';
@@ -189,6 +189,15 @@ export function WorkflowBuilder({ workflow }: WorkflowBuilderProps): React.React
     },
     [setEdges, markDirty],
   );
+
+  const deleteSelectedEdge = useCallback((): void => {
+    if (!selectedEdgeId) {
+      return;
+    }
+    setEdges((current) => current.filter((e) => e.id !== selectedEdgeId));
+    setSelectedEdgeId(null);
+    markDirty();
+  }, [selectedEdgeId, setEdges, markDirty]);
 
   const setEdgeLabel = useCallback(
     (label: string): void => {
@@ -416,6 +425,9 @@ export function WorkflowBuilder({ workflow }: WorkflowBuilderProps): React.React
               fitView
               proOptions={{ hideAttribution: true }}
               defaultEdgeOptions={{ type: 'smoothstep' }}
+              // React Flow only listens for Backspace by default — Windows
+              // users reach for the Delete key, so accept both.
+              deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
             >
               <Background gap={16} />
               <Controls showInteractive={false} />
@@ -465,6 +477,12 @@ export function WorkflowBuilder({ workflow }: WorkflowBuilderProps): React.React
               placeholder="or type a custom label"
               className="rounded-md border bg-background px-2 py-1.5 text-xs"
             />
+            {editable && (
+              <Button size="sm" variant="outline" onClick={deleteSelectedEdge}>
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                Delete connection
+              </Button>
+            )}
           </div>
         )}
       </div>

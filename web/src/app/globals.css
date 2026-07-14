@@ -533,3 +533,14 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* Workflow canvas — make the clicked (selected) connection unmistakable so
+   users can see exactly what "Delete connection" / Del will remove. */
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:focus .react-flow__edge-path {
+  stroke: var(--brand-primary, #f97316);
+  stroke-width: 2.5;
+}
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 2;
+}
