@@ -10,7 +10,7 @@ import { ConditionStepAdapter } from './condition-step.adapter';
 import { EmailStepAdapter } from './email-step.adapter';
 import { FillDocumentStepAdapter } from './fill-document-step.adapter';
 import { NotifyStepAdapter } from './notify-step.adapter';
-import { PdfGenerateStepAdapter } from './pdf-generate-step.adapter';
+import { PdfGenerateStepAdapter, buildPdfRows } from './pdf-generate-step.adapter';
 import { SendDocumentStepAdapter } from './send-document-step.adapter';
 
 const email = { send: jest.fn().mockResolvedValue(undefined) };
@@ -236,6 +236,7 @@ describe('SendDocumentStepAdapter', () => {
     email as any,
     storage as any,
     entitlements as any,
+    entitlementsRepository as any,
     logger as any,
   );
 
@@ -270,6 +271,18 @@ describe('SendDocumentStepAdapter', () => {
     expect(result.error).toContain('fill_document or pdf_generate node before');
   });
 
+  it('falls back to the org owner when no recipient is configured', async () => {
+    entitlementsRepository.findOwnerEmail.mockResolvedValue({ email: 'owner@acme.test' });
+    storage.download.mockResolvedValue(await fixturePdf());
+
+    const result = await adapter.execute(
+      ctx('send_document', {}, { filledDocumentKey: 'some/key.pdf' }),
+    );
+
+    expect(result.status).toBe('completed');
+    expect(email.send).toHaveBeenCalledWith(expect.objectContaining({ to: 'owner@acme.test' }));
+  });
+
   it('skips at the EMAILS cap without downloading', async () => {
     entitlements.getMeterState.mockResolvedValue({ used: 25, limit: 25 });
     const result = await adapter.execute(
@@ -280,12 +293,17 @@ describe('SendDocumentStepAdapter', () => {
   });
 });
 
+const formsRepository = {
+  findById: jest.fn().mockResolvedValue(null),
+};
+
 describe('PdfGenerateStepAdapter', () => {
   const adapter = new PdfGenerateStepAdapter(
     // Reason: structural mocks stand in for Nest providers in unit tests.
     storage as any,
     entitlements as any,
     workflowsRepository as any,
+    formsRepository as any,
     logger as any,
   );
 
@@ -320,6 +338,63 @@ describe('PdfGenerateStepAdapter', () => {
     const result = await adapter.execute(ctx('pdf_generate', {}));
     expect(result.status).toBe('skipped');
     expect(storage.upload).not.toHaveBeenCalled();
+  });
+});
+
+describe('buildPdfRows (schema-driven PDF layout)', () => {
+  const field = (id: string, type: string, label: string, sortOrder: number, page = 1) => ({
+    id,
+    type,
+    label,
+    required: false,
+    config: {},
+    sortOrder,
+    page,
+  });
+
+  it('prints human labels in form order with section headers', () => {
+    const rows = buildPdfRows({ email: 'a@b.c', name: 'Jane' }, {
+      fields: [
+        field('sec-1', 'section', 'Contact', 0),
+        field('name', 'text', 'Full Name', 1),
+        field('email', 'email', 'Email Address', 2),
+      ],
+    } as never);
+    expect(rows).toEqual([
+      { kind: 'section', label: 'Contact' },
+      { kind: 'answer', label: 'Full Name', value: 'Jane' },
+      { kind: 'answer', label: 'Email Address', value: 'a@b.c' },
+    ]);
+  });
+
+  it('skips empty answers and sections with no answered fields', () => {
+    const rows = buildPdfRows({ name: 'Jane' }, {
+      fields: [
+        field('name', 'text', 'Full Name', 0),
+        field('sec-2', 'section', 'Empty Section', 1),
+        field('notes', 'multiline', 'Notes', 2),
+      ],
+    } as never);
+    expect(rows).toEqual([{ kind: 'answer', label: 'Full Name', value: 'Jane' }]);
+  });
+
+  it('appends answers whose ids are missing from the schema', () => {
+    const rows = buildPdfRows({ name: 'Jane', 'legacy-field': 'kept' }, {
+      fields: [field('name', 'text', 'Full Name', 0)],
+    } as never);
+    expect(rows[1]).toEqual({ kind: 'answer', label: 'legacy-field', value: 'kept' });
+  });
+
+  it('summarizes signature data URLs instead of dumping base64', () => {
+    const rows = buildPdfRows({ sig: `data:image/png;base64,${'A'.repeat(500)}` }, {
+      fields: [field('sig', 'signature', 'Signature', 0)],
+    } as never);
+    expect(rows).toEqual([{ kind: 'answer', label: 'Signature', value: '[Signed]' }]);
+  });
+
+  it('falls back to raw ids when there is no schema at all', () => {
+    const rows = buildPdfRows({ name: 'Jane' }, null);
+    expect(rows).toEqual([{ kind: 'answer', label: 'name', value: 'Jane' }]);
   });
 });
 

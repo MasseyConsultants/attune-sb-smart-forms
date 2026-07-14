@@ -3,6 +3,8 @@
 // (fill_document or pdf_generate) as an attachment. Local blob storage has no
 // presigned URLs, so attaching beats linking for SMB anyway. Metered as an
 // email send (idempotent on run+node); cap skips, never fails the run.
+// A blank recipient falls back to the org owner (same rule as notify) — "the
+// PDF lands in my inbox" is the zero-config default SMBs expect.
 
 import { Injectable } from '@nestjs/common';
 import { Meter } from '@prisma/client';
@@ -12,6 +14,7 @@ import { interpolate } from '../template-interpolation';
 
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
 import { BlobStorageService } from '@/modules/common/storage/blob-storage.service';
+import { EntitlementsRepository } from '@/modules/entitlements/entitlements.repository';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
 import { brandEmailShell, escapeHtml } from '@/modules/notifications/email-brand-shell';
 import { EmailService } from '@/modules/notifications/email.service';
@@ -26,13 +29,21 @@ export class SendDocumentStepAdapter implements StepAdapter {
     private readonly email: EmailService,
     private readonly storage: BlobStorageService,
     private readonly entitlements: EntitlementsService,
+    private readonly entitlementsRepository: EntitlementsRepository,
     private readonly logger: SecureLoggerService,
   ) {}
 
   async execute(ctx: StepContext): Promise<StepResult> {
-    const to = interpolate(String(ctx.nodeData['to'] ?? ''), ctx.state).trim();
+    let to = interpolate(String(ctx.nodeData['to'] ?? ''), ctx.state).trim();
     if (!to) {
-      return { status: 'failed', error: 'send_document node has no recipient configured' };
+      const owner = await this.entitlementsRepository.findOwnerEmail(ctx.organizationId);
+      to = owner?.email ?? '';
+    }
+    if (!to) {
+      return {
+        status: 'failed',
+        error: 'send_document found no recipient (none configured, no org owner email)',
+      };
     }
 
     const stateKey = String(ctx.nodeData['stateKey'] ?? 'filledDocumentKey');

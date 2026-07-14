@@ -1,5 +1,5 @@
 // Author: Robert Massey | Created: 2026-07-13 | Module: Seed / Library
-// Purpose: The 27 curated PUBLIC gallery templates (S9). Slugs are stable —
+// Purpose: The curated PUBLIC gallery templates (37). Slugs are stable —
 // the seed upserts by slug so re-running refreshes content without duplicating
 // rows or resetting install counts. Every schema must pass
 // FormsService.validateSchema and every bundled graph must pass validateGraph;
@@ -529,6 +529,35 @@ export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
         f('signature', 'signature', 'Reporter Signature', { required: true }),
       ),
     },
+    workflow: {
+      name: 'Incident report on file',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Incident Report — {{incident-type}} ({{_date}})' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '',
+            subject: 'Incident report filed: {{incident-type}}',
+            body: 'A new incident report was submitted by {{reporter-name}}. The PDF record is attached — keep it with your OSHA/insurance files.',
+            filename: 'incident_{{_date}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-end' },
+      ],
+    },
   },
 
   // =========================================================================
@@ -589,6 +618,35 @@ export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
         f('after-photo', 'photo', 'Photo of completed work'),
         f('customer-signature', 'signature', 'Customer Sign-off', { required: true }),
       ),
+    },
+    workflow: {
+      name: 'Completion report PDF to the office',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Service Completion — Job {{job-number}}' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '',
+            subject: 'Job {{job-number}} closed out',
+            body: 'The signed completion report for job {{job-number}} is attached.\n\nWork performed: {{work-performed}}',
+            filename: 'job_{{job-number}}_completion.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-end' },
+      ],
     },
   },
   {
@@ -994,6 +1052,35 @@ export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
       ),
       settings: { submitButtonText: 'Sign & Submit' },
     },
+    workflow: {
+      name: 'Send signed waiver copy',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Liability Waiver — {{participant-name}}' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '{{email}}',
+            subject: 'Your signed waiver copy',
+            body: 'Hi {{participant-name}},\n\nThanks for completing the waiver. Your signed copy is attached for your records.',
+            filename: 'waiver_{{participant-name}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-end' },
+      ],
+    },
   },
   {
     slug: 'photo-release-consent',
@@ -1022,6 +1109,700 @@ export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
         f('signature', 'signature', 'Signature', { required: true }),
         f('signed-date', 'date', 'Date', { required: true }),
       ),
+    },
+  },
+
+  // =========================================================================
+  // DOCUMENT-FIRST TEMPLATES — each bundles a PDF workflow so the clone
+  // delivers a finished document (emailed as an attachment) on day one.
+  // =========================================================================
+  {
+    slug: 'service-estimate',
+    name: 'Service Estimate',
+    description:
+      'Fill this out after a site visit and your customer instantly receives a branded PDF estimate by email — scope, line items, price, and validity window.',
+    category: 'orders',
+    schema: {
+      fields: fields(
+        f('sec-customer', 'section', 'Customer'),
+        f('customer-name', 'text', 'Customer Name', { required: true }),
+        f('customer-email', 'email', 'Customer Email', { required: true }),
+        f('job-address', 'address', 'Job Address'),
+        f('sec-scope', 'section', 'Scope of Work'),
+        f('job-title', 'text', 'Job Title', {
+          required: true,
+          config: { placeholder: 'e.g. Water heater replacement' },
+        }),
+        f('scope', 'multiline', 'Work to be performed', { required: true, config: { rows: 5 } }),
+        f('materials', 'multiline', 'Materials included', { config: { rows: 3 } }),
+        f('sec-price', 'section', 'Pricing'),
+        f('labor-cost', 'number', 'Labor ($)', { required: true }),
+        f('materials-cost', 'number', 'Materials ($)', { required: true }),
+        f('total', 'number', 'Total Estimate ($)', { required: true }),
+        f('valid-days', 'dropdown', 'Estimate valid for', {
+          required: true,
+          config: { options: ['7 days', '14 days', '30 days', '60 days'] },
+        }),
+        f('terms', 'multiline', 'Terms & notes', {
+          config: { rows: 3, placeholder: '50% deposit to schedule; balance on completion.' },
+        }),
+        f('estimator-signature', 'signature', 'Prepared By (signature)', { required: true }),
+      ),
+      settings: { submitButtonText: 'Send Estimate' },
+    },
+    workflow: {
+      name: 'Email the estimate PDF',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Estimate — {{job-title}}' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '{{customer-email}}',
+            subject: 'Your estimate: {{job-title}}',
+            body: 'Hi {{customer-name}},\n\nThanks for the opportunity — your estimate is attached. It is valid for {{valid-days}}. Reply to this email with any questions or to get on the schedule.',
+            filename: 'estimate_{{customer-name}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'simple-invoice',
+    name: 'Simple Invoice',
+    description:
+      'Type in the job details and the customer gets a clean PDF invoice by email — no accounting software required.',
+    category: 'orders',
+    schema: {
+      fields: fields(
+        f('invoice-number', 'text', 'Invoice #', { required: true }),
+        f('customer-name', 'text', 'Bill To (name)', { required: true }),
+        f('customer-email', 'email', 'Customer Email', { required: true }),
+        f('invoice-date', 'date', 'Invoice Date', { required: true }),
+        f('due-date', 'date', 'Due Date', { required: true }),
+        f('line-items', 'multiline', 'Line items (one per line: description — amount)', {
+          required: true,
+          config: { rows: 6 },
+        }),
+        f('subtotal', 'number', 'Subtotal ($)', { required: true }),
+        f('tax', 'number', 'Tax ($)'),
+        f('total-due', 'number', 'Total Due ($)', { required: true }),
+        f('payment-instructions', 'multiline', 'How to pay', {
+          config: {
+            rows: 2,
+            placeholder: 'Check, Zelle to billing@yourbiz.com, or card by phone.',
+          },
+        }),
+      ),
+      settings: { submitButtonText: 'Send Invoice' },
+    },
+    workflow: {
+      name: 'Email the invoice PDF',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Invoice {{invoice-number}}' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '{{customer-email}}',
+            subject: 'Invoice {{invoice-number}} — due {{due-date}}',
+            body: 'Hi {{customer-name}},\n\nInvoice {{invoice-number}} for {{total-due}} is attached. Payment is due by {{due-date}}.\n\n{{payment-instructions}}',
+            filename: 'invoice_{{invoice-number}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'service-agreement',
+    name: 'Service Agreement',
+    description:
+      'A signable service contract: scope, payment terms, and cancellation policy. Both parties get the signed PDF automatically.',
+    category: 'legal',
+    schema: {
+      fields: fields(
+        f('sec-parties', 'section', 'Parties'),
+        f('client-name', 'text', 'Client Name', { required: true }),
+        f('client-email', 'email', 'Client Email', { required: true }),
+        f('client-address', 'address', 'Client Address'),
+        f('sec-terms', 'section', 'Agreement Terms'),
+        f('services', 'multiline', 'Services to be provided', {
+          required: true,
+          config: { rows: 5 },
+        }),
+        f('start-date', 'date', 'Start Date', { required: true }),
+        f('payment-terms', 'dropdown', 'Payment Terms', {
+          required: true,
+          config: {
+            options: ['Due on completion', 'Net 15', 'Net 30', '50% deposit / 50% completion'],
+          },
+        }),
+        f('total-price', 'number', 'Agreed Price ($)', { required: true }),
+        f('cancellation', 'multiline', 'Cancellation policy', {
+          config: { rows: 3, placeholder: 'Either party may cancel with 14 days written notice…' },
+        }),
+        f('sec-sign', 'section', 'Acceptance'),
+        f('ack-terms', 'checkbox', 'I have read and agree to the terms above', { required: true }),
+        f('client-signature', 'signature', 'Client Signature', { required: true }),
+        f('signed-date', 'date', 'Date', { required: true }),
+      ),
+      settings: { submitButtonText: 'Sign Agreement' },
+    },
+    workflow: {
+      name: 'Signed agreement to both parties',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Service Agreement — {{client-name}}' },
+        },
+        {
+          id: 'n-send-client',
+          type: 'send_document',
+          position: { x: 440, y: -80 },
+          data: {
+            to: '{{client-email}}',
+            subject: 'Your signed service agreement',
+            body: 'Hi {{client-name}},\n\nYour signed agreement is attached for your records. We look forward to working with you.',
+            filename: 'agreement_{{client-name}}.pdf',
+          },
+        },
+        {
+          id: 'n-send-owner',
+          type: 'send_document',
+          position: { x: 440, y: 80 },
+          data: {
+            to: '',
+            subject: 'Agreement signed: {{client-name}}',
+            body: '{{client-name}} signed the service agreement on {{signed-date}}. Copy attached.',
+            filename: 'agreement_{{client-name}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send-client' },
+        { id: 'e3', source: 'n-pdf', target: 'n-send-owner' },
+        { id: 'e4', source: 'n-send-client', target: 'n-end' },
+        { id: 'e5', source: 'n-send-owner', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'rental-application',
+    name: 'Rental Application',
+    description:
+      'Tenant screening application: household, employment, income, references, and consent — with a PDF copy filed automatically.',
+    category: 'intake',
+    schema: {
+      fields: fields(
+        f('sec-applicant', 'section', 'Applicant'),
+        f('full-name', 'text', 'Full Legal Name', { required: true }),
+        f('email', 'email', 'Email', { required: true }),
+        f('phone', 'phone', 'Phone', { required: true }),
+        f('dob', 'date', 'Date of Birth', { required: true }),
+        f('current-address', 'address', 'Current Address', { required: true }),
+        f('pb-1', 'pagebreak', 'Household & Employment'),
+        f('sec-household', 'section', 'Household', { page: 2 }),
+        f('occupants', 'number', 'Number of occupants', { required: true, page: 2 }),
+        f('has-pets', 'yesno', 'Any pets?', { required: true, page: 2 }),
+        f('pet-details', 'text', 'Pet type / breed / weight', {
+          page: 2,
+          showWhen: { fieldId: 'has-pets', operator: 'equals', value: 'yes' },
+        }),
+        f('sec-employment', 'section', 'Employment & Income', { page: 2 }),
+        f('employer', 'text', 'Current Employer', { required: true, page: 2 }),
+        f('job-title', 'text', 'Job Title', { page: 2 }),
+        f('monthly-income', 'number', 'Gross Monthly Income ($)', { required: true, page: 2 }),
+        f('sec-history', 'section', 'Rental History', { page: 2 }),
+        f('landlord-ref', 'text', 'Previous landlord (name + phone)', { page: 2 }),
+        f('evicted', 'yesno', 'Have you ever been evicted?', { required: true, page: 2 }),
+        f('evicted-notes', 'multiline', 'Please explain', {
+          page: 2,
+          config: { rows: 2 },
+          showWhen: { fieldId: 'evicted', operator: 'equals', value: 'yes' },
+        }),
+        f('pb-2', 'pagebreak', 'Consent', { page: 2 }),
+        f('ack-screening', 'checkbox', 'I authorize background and credit screening', {
+          required: true,
+          page: 3,
+        }),
+        f('ack-true', 'checkbox', 'The information provided is true and complete', {
+          required: true,
+          page: 3,
+        }),
+        f('signature', 'signature', 'Applicant Signature', { required: true, page: 3 }),
+      ),
+      settings: { enablePageNavigation: true, showProgressBar: true },
+    },
+    workflow: {
+      name: 'Application PDF on file',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Rental Application — {{full-name}}' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '',
+            subject: 'New rental application: {{full-name}}',
+            body: 'A new rental application from {{full-name}} (income {{monthly-income}}/mo, {{occupants}} occupants) is attached as a PDF.',
+            filename: 'application_{{full-name}}.pdf',
+          },
+        },
+        {
+          id: 'n-ack',
+          type: 'email',
+          position: { x: 660, y: 0 },
+          data: {
+            to: '{{email}}',
+            subject: 'We received your application',
+            body: 'Hi {{full-name}},\n\nThanks for applying. We typically complete screening within 2 business days and will contact you at {{phone}}.',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 880, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-ack' },
+        { id: 'e4', source: 'n-ack', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'contractor-w9-onboarding',
+    name: 'Contractor / Vendor Onboarding (W-9 style)',
+    description:
+      'Collect W-9-style taxpayer info from contractors. Upload your own W-9 PDF in Templates, map the fields, and the workflow emails back the filled form itself.',
+    category: 'hr',
+    schema: {
+      fields: fields(
+        f('legal-name', 'text', 'Legal Name (as shown on tax return)', { required: true }),
+        f('business-name', 'text', 'Business name / DBA (if different)'),
+        f('tax-class', 'dropdown', 'Federal tax classification', {
+          required: true,
+          config: {
+            options: [
+              'Individual/sole proprietor',
+              'C corporation',
+              'S corporation',
+              'Partnership',
+              'LLC',
+              'Other',
+            ],
+          },
+        }),
+        f('tin', 'text', 'Taxpayer ID (SSN or EIN)', { required: true }),
+        f('address', 'address', 'Address', { required: true }),
+        f('email', 'email', 'Email', { required: true }),
+        f('phone', 'phone', 'Phone'),
+        f('ack-certify', 'checkbox', 'I certify the information above is correct', {
+          required: true,
+        }),
+        f('signature', 'signature', 'Signature', { required: true }),
+        f('signed-date', 'date', 'Date', { required: true }),
+      ),
+      settings: { submitButtonText: 'Submit W-9 Info' },
+    },
+    workflow: {
+      name: 'Filled W-9 to accounting',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-fill',
+          type: 'fill_document',
+          position: { x: 220, y: 0 },
+          data: {},
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '',
+            subject: 'W-9 on file: {{legal-name}}',
+            body: 'The completed W-9 for {{legal-name}} is attached. File it with your 1099 records.\n\nTip: link your uploaded W-9 PDF to this form under Templates so the attachment is the real form, filled in.',
+            filename: 'w9_{{legal-name}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-fill' },
+        { id: 'e2', source: 'n-fill', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'expense-reimbursement',
+    name: 'Expense Reimbursement',
+    description:
+      'Employees submit expenses with receipts; a manager approves in one click and a PDF expense record is filed automatically.',
+    category: 'hr',
+    schema: {
+      fields: fields(
+        f('employee-name', 'text', 'Employee Name', { required: true }),
+        f('employee-email', 'email', 'Your Email', { required: true }),
+        f('expense-date', 'date', 'Expense Date', { required: true }),
+        f('category', 'dropdown', 'Category', {
+          required: true,
+          config: { options: ['Travel', 'Meals', 'Supplies', 'Software', 'Mileage', 'Other'] },
+        }),
+        f('amount', 'number', 'Amount ($)', { required: true }),
+        f('description', 'multiline', 'What was this expense for?', {
+          required: true,
+          config: { rows: 3 },
+        }),
+        f('receipt', 'photo', 'Receipt photo', { required: true }),
+      ),
+      settings: { submitButtonText: 'Submit Expense' },
+    },
+    workflow: {
+      name: 'Expense approval + PDF record',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-approval',
+          type: 'approval',
+          position: { x: 220, y: 0 },
+          data: {
+            to: '',
+            message:
+              'Expense from {{employee-name}}: {{category}}, {{amount}} on {{expense-date}} — {{description}}',
+          },
+        },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 460, y: -80 },
+          data: { title: 'Approved Expense — {{employee-name}} ({{expense-date}})' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 680, y: -80 },
+          data: {
+            to: '{{employee-email}}',
+            subject: 'Your expense was approved',
+            body: 'Hi {{employee-name}},\n\nYour {{category}} expense of {{amount}} was approved. The expense record is attached — reimbursement follows your usual payroll cycle.',
+            filename: 'expense_{{expense-date}}.pdf',
+          },
+        },
+        {
+          id: 'n-denied',
+          type: 'email',
+          position: { x: 460, y: 80 },
+          data: {
+            to: '{{employee-email}}',
+            subject: 'Your expense needs another look',
+            body: 'Hi {{employee-name}},\n\nYour {{category}} expense of {{amount}} was not approved as submitted. Please check with your manager.',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 900, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-approval' },
+        { id: 'e2', source: 'n-approval', target: 'n-pdf', label: 'Approved' },
+        { id: 'e3', source: 'n-approval', target: 'n-denied', label: 'Rejected' },
+        { id: 'e4', source: 'n-pdf', target: 'n-send' },
+        { id: 'e5', source: 'n-send', target: 'n-end' },
+        { id: 'e6', source: 'n-denied', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'daily-jobsite-report',
+    name: 'Daily Job Site Report',
+    description:
+      'Construction and trades daily log: crew, weather, work completed, delays, and photos — a PDF lands in the office inbox every day.',
+    category: 'field-service',
+    schema: {
+      fields: fields(
+        f('project-name', 'text', 'Project / Site', { required: true }),
+        f('report-date', 'date', 'Date', { required: true }),
+        f('foreman', 'currentuser', 'Reported By'),
+        f('crew-count', 'number', 'Crew on site', { required: true }),
+        f('weather', 'dropdown', 'Weather', {
+          config: { options: ['Clear', 'Rain', 'Snow', 'Wind', 'Extreme heat'] },
+        }),
+        f('work-completed', 'multiline', 'Work completed today', {
+          required: true,
+          config: { rows: 4 },
+        }),
+        f('delays', 'yesno', 'Any delays or issues?', { required: true }),
+        f('delay-notes', 'multiline', 'Describe delays', {
+          config: { rows: 3 },
+          showWhen: { fieldId: 'delays', operator: 'equals', value: 'yes' },
+        }),
+        f('materials-needed', 'multiline', 'Materials needed tomorrow', { config: { rows: 2 } }),
+        f('site-photos', 'photo', 'Site photos'),
+        f('signature', 'signature', 'Foreman Signature', { required: true }),
+      ),
+    },
+    workflow: {
+      name: 'Daily report PDF to the office',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Daily Report — {{project-name}} ({{report-date}})' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '',
+            subject: 'Daily report: {{project-name}} — {{report-date}}',
+            body: 'The daily site report for {{project-name}} is attached.\n\nCrew: {{crew-count}}\nDelays: {{delays}}',
+            filename: 'daily_{{project-name}}_{{report-date}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'cleaning-completion-checklist',
+    name: 'Cleaning Completion Checklist',
+    description:
+      'Room-by-room close-out for cleaning crews. The customer automatically receives a PDF proof-of-service — a five-star-review machine.',
+    category: 'field-service',
+    schema: {
+      fields: fields(
+        f('customer-name', 'text', 'Customer Name', { required: true }),
+        f('customer-email', 'email', 'Customer Email', { required: true }),
+        f('service-address', 'address', 'Service Address', { required: true }),
+        f('service-date', 'date', 'Service Date', { required: true }),
+        f('cleaner', 'currentuser', 'Cleaned By'),
+        f('sec-areas', 'section', 'Areas Completed'),
+        f('areas-done', 'multiselect', 'Rooms / areas cleaned', {
+          required: true,
+          config: {
+            options: [
+              'Kitchen',
+              'Bathrooms',
+              'Bedrooms',
+              'Living areas',
+              'Floors',
+              'Windows',
+              'Appliances',
+            ],
+          },
+        }),
+        f('deep-clean', 'yesno', 'Deep-clean add-ons performed?', { required: true }),
+        f('notes', 'multiline', 'Notes for the customer', { config: { rows: 3 } }),
+        f('after-photos', 'photo', 'After photos'),
+        f('crew-signature', 'signature', 'Crew Lead Signature', { required: true }),
+      ),
+    },
+    workflow: {
+      name: 'Proof-of-service PDF to customer',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Cleaning Service Report — {{service-date}}' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '{{customer-email}}',
+            subject: 'Your cleaning service report',
+            body: 'Hi {{customer-name}},\n\nToday\u2019s service is complete — your service report is attached. Thank you for your business!',
+            filename: 'cleaning_report_{{service-date}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'appointment-request',
+    name: 'Appointment Request',
+    description:
+      'Let customers request a time online: service, preferred slots, and instant confirmation email — the front desk gets notified.',
+    category: 'intake',
+    schema: {
+      fields: fields(
+        f('full-name', 'text', 'Your Name', { required: true }),
+        f('email', 'email', 'Email', { required: true }),
+        f('phone', 'phone', 'Phone', { required: true }),
+        f('service', 'dropdown', 'What do you need?', {
+          required: true,
+          config: { options: ['Consultation', 'Service call', 'Follow-up', 'Estimate visit'] },
+        }),
+        f('preferred-date', 'date', 'Preferred Date', { required: true }),
+        f('preferred-time', 'radio', 'Preferred Time', {
+          required: true,
+          config: { options: ['Morning', 'Afternoon', 'Evening'] },
+        }),
+        f('notes', 'multiline', 'Anything we should know?', { config: { rows: 3 } }),
+      ),
+      settings: {
+        submitButtonText: 'Request Appointment',
+        successMessage: 'Request received — we will confirm your time shortly.',
+      },
+    },
+    workflow: {
+      name: 'Confirm + notify front desk',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-notify',
+          type: 'notify',
+          position: { x: 220, y: 0 },
+          data: {
+            message:
+              'Appointment request: {{full-name}} wants {{service}} on {{preferred-date}} ({{preferred-time}}). Phone: {{phone}}',
+          },
+        },
+        {
+          id: 'n-ack',
+          type: 'email',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '{{email}}',
+            subject: 'We got your appointment request',
+            body: 'Hi {{full-name}},\n\nThanks for requesting {{service}} on {{preferred-date}} ({{preferred-time}}). We will call or email to confirm the exact time.',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-notify' },
+        { id: 'e2', source: 'n-notify', target: 'n-ack' },
+        { id: 'e3', source: 'n-ack', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'membership-application',
+    name: 'Membership Application',
+    description:
+      'Gyms, clubs, and studios: plan selection, health disclosure, signed terms — the member gets a welcome email with their signed agreement PDF.',
+    category: 'events',
+    schema: {
+      fields: fields(
+        f('sec-member', 'section', 'Member'),
+        f('full-name', 'text', 'Full Name', { required: true }),
+        f('email', 'email', 'Email', { required: true }),
+        f('phone', 'phone', 'Phone', { required: true }),
+        f('dob', 'date', 'Date of Birth', { required: true }),
+        f('sec-plan', 'section', 'Membership'),
+        f('plan', 'radio', 'Membership Plan', {
+          required: true,
+          config: { options: ['Monthly', 'Annual (2 months free)', 'Punch card (10 visits)'] },
+        }),
+        f('start-date', 'date', 'Start Date', { required: true }),
+        f('emergency-contact', 'text', 'Emergency contact (name + phone)', { required: true }),
+        f('health-flags', 'multiselect', 'Any of these apply?', {
+          config: {
+            options: ['Heart condition', 'Recent injury', 'Pregnancy', 'Doctor-restricted', 'None'],
+          },
+        }),
+        f('sec-terms', 'section', 'Terms'),
+        f('ack-waiver', 'checkbox', 'I accept the liability waiver and facility rules', {
+          required: true,
+        }),
+        f('ack-billing', 'checkbox', 'I authorize recurring billing for my selected plan', {
+          required: true,
+        }),
+        f('signature', 'signature', 'Member Signature', { required: true }),
+      ),
+      settings: { submitButtonText: 'Join Now' },
+    },
+    workflow: {
+      name: 'Welcome + signed agreement PDF',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        {
+          id: 'n-pdf',
+          type: 'pdf_generate',
+          position: { x: 220, y: 0 },
+          data: { title: 'Membership Agreement — {{full-name}}' },
+        },
+        {
+          id: 'n-send',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '{{email}}',
+            subject: 'Welcome! Your membership agreement',
+            body: 'Hi {{full-name}},\n\nWelcome aboard! Your {{plan}} membership starts {{start-date}}. Your signed agreement is attached — see you soon.',
+            filename: 'membership_{{full-name}}.pdf',
+          },
+        },
+        {
+          id: 'n-notify',
+          type: 'notify',
+          position: { x: 660, y: 0 },
+          data: {
+            message:
+              'New member: {{full-name}} joined on the {{plan}} plan, starting {{start-date}}.',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 880, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-pdf' },
+        { id: 'e2', source: 'n-pdf', target: 'n-send' },
+        { id: 'e3', source: 'n-send', target: 'n-notify' },
+        { id: 'e4', source: 'n-notify', target: 'n-end' },
+      ],
     },
   },
 ];

@@ -425,7 +425,7 @@ function ConfigFields({
       return (
         <>
           <Text
-            label="To"
+            label="To (blank = account owner)"
             value={text('to')}
             onChange={(v) => onChange('to', v)}
             placeholder="Click an email chip to send to the submitter"

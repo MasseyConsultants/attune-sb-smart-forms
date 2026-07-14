@@ -36,7 +36,12 @@ export class NotifyStepAdapter implements StepAdapter {
     }
 
     const title = interpolate(String(ctx.nodeData['title'] ?? 'Workflow notification'), ctx.state);
-    const body = interpolate(String(ctx.nodeData['body'] ?? ''), ctx.state);
+    // The builder's config panel (and library seeds) write `message`; older
+    // graphs may carry `body`. Accept both so no configured text is dropped.
+    const body = interpolate(
+      String(ctx.nodeData['body'] ?? ctx.nodeData['message'] ?? ''),
+      ctx.state,
+    );
     const removeBranding = await this.entitlements.checkFeature(
       ctx.organizationId,
       'removeBranding',

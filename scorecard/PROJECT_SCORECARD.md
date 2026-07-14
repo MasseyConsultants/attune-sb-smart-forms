@@ -289,6 +289,20 @@
   card (name + fields + friendly types), start config binds the trigger form
   in-canvas, clickable field chips insert {{tokens}} in every token-capable
   node config. 18 web suites / 95 tests green; verified live in the builder
+- PDF pipeline + library expansion (2026-07-14): pdf_generate now renders
+  human field labels in form order with section headers (schema-driven via
+  the trigger form; signature/photo answers summarized, not base64-dumped);
+  send_document falls back to the org owner when no recipient is configured
+  (matches notify); notify accepts both `message` and `body` config keys.
+  Library grew 27 → 37 curated templates — 10 new document-first templates
+  (service estimate, invoice, service agreement, rental application, W-9
+  onboarding w/ fill_document, expense reimbursement w/ approval, daily job
+  site report, cleaning completion, appointment request, membership
+  application) plus PDF workflows added to 3 existing templates (liability
+  waiver, incident report, service completion). 526 API / 96 web tests
+  green. Live smoke (`scripts/smoke-pdf-library.ps1`): clone → publish form
+  - workflow → public submit → run COMPLETED with pdf_generate +
+    send_document; generated PDF inspected — labels, sections, [Signed] ✓
 
 ## Quality Gates
 
