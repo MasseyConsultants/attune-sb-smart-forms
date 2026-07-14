@@ -25,6 +25,38 @@ const PLATFORM_ADMIN_PASSWORD = 'AttunePlatform#2026';
 const DEMO_OWNER_EMAIL = 'owner@demo.attune-sb.local';
 const DEMO_OWNER_PASSWORD = 'DemoOwnerPass#2026';
 
+// One org per paid tier so every plan's gates/limits can be tested without
+// Stripe — the local Subscription row is the entitlement authority.
+const TIER_ORGS = [
+  {
+    planId: 'solo',
+    orgName: 'Solo Handyman LLC',
+    slug: 'demo-solo-handyman',
+    email: 'owner@solo.attune-sb.local',
+    password: 'SoloOwnerPass#2026',
+    firstName: 'Sam',
+    lastName: 'Solo',
+  },
+  {
+    planId: 'growth',
+    orgName: 'Growth Dental Group',
+    slug: 'demo-growth-dental',
+    email: 'owner@growth.attune-sb.local',
+    password: 'GrowthOwnerPass#2026',
+    firstName: 'Grace',
+    lastName: 'Growth',
+  },
+  {
+    planId: 'business',
+    orgName: 'Business Logistics Inc',
+    slug: 'demo-business-logistics',
+    email: 'owner@business.attune-sb.local',
+    password: 'BizOwnerPass#2026',
+    firstName: 'Blake',
+    lastName: 'Business',
+  },
+] as const;
+
 async function seedPlans(): Promise<void> {
   // Paid plans only — 'trial' is a subscription state, not a purchasable plan.
   const plans = [
@@ -129,6 +161,50 @@ async function seedDemoOrg(): Promise<void> {
   console.warn('Seeded demo org with active trial');
 }
 
+async function seedTierOrgs(): Promise<void> {
+  for (const tier of TIER_ORGS) {
+    const org = await prisma.organization.upsert({
+      where: { slug: tier.slug },
+      create: { name: tier.orgName, slug: tier.slug },
+      update: {},
+    });
+
+    const passwordHash = await bcrypt.hash(tier.password, 12);
+    await prisma.user.upsert({
+      where: { email: tier.email },
+      create: {
+        email: tier.email,
+        passwordHash,
+        firstName: tier.firstName,
+        lastName: tier.lastName,
+        role: Role.OWNER,
+        organizationId: org.id,
+        emailVerified: true,
+        acceptedTermsAt: new Date(),
+      },
+      update: {},
+    });
+
+    const now = new Date();
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const existing = await prisma.subscription.findUnique({
+      where: { organizationId: org.id },
+    });
+    if (!existing) {
+      await prisma.subscription.create({
+        data: {
+          organizationId: org.id,
+          planId: tier.planId,
+          status: SubscriptionStatus.ACTIVE,
+          currentPeriodEnd: periodEnd,
+          billingAnchorDay: now.getUTCDate(),
+        },
+      });
+    }
+  }
+  console.warn(`Seeded ${TIER_ORGS.length} paid-tier demo orgs (solo/growth/business)`);
+}
+
 async function seedLibraryTemplates(): Promise<void> {
   // Upsert by stable slug: re-running refreshes curated content in place
   // without duplicating rows or resetting install counts.
@@ -160,12 +236,16 @@ async function main(): Promise<void> {
   await seedPlans();
   await seedPlatformAdmin();
   await seedDemoOrg();
+  await seedTierOrgs();
   await seedLibraryTemplates();
 
   console.warn('');
   console.warn('=== Seed complete — dev credentials ===');
   console.warn(`Platform admin: ${PLATFORM_ADMIN_EMAIL} / ${PLATFORM_ADMIN_PASSWORD}`);
-  console.warn(`Demo org owner: ${DEMO_OWNER_EMAIL} / ${DEMO_OWNER_PASSWORD}`);
+  console.warn(`Trial owner:    ${DEMO_OWNER_EMAIL} / ${DEMO_OWNER_PASSWORD}`);
+  for (const tier of TIER_ORGS) {
+    console.warn(`${tier.planId.padEnd(8)} owner: ${tier.email} / ${tier.password}`);
+  }
   console.warn('=======================================');
 }
 

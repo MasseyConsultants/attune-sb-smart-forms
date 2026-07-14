@@ -64,14 +64,19 @@ Swagger lives at `http://localhost:3101/api/docs` in dev.
 
 ### Seed credentials
 
-| Account        | Email                        | Password              |
-| -------------- | ---------------------------- | --------------------- |
-| Platform admin | `admin@attuneitus.com`       | `AttunePlatform#2026` |
-| Demo org owner | `owner@demo.attune-sb.local` | `DemoOwnerPass#2026`  |
+| Account          | Email                            | Password               |
+| ---------------- | -------------------------------- | ---------------------- |
+| Platform admin   | `admin@attuneitus.com`           | `AttunePlatform#2026`  |
+| Trial org owner  | `owner@demo.attune-sb.local`     | `DemoOwnerPass#2026`   |
+| Solo org owner   | `owner@solo.attune-sb.local`     | `SoloOwnerPass#2026`   |
+| Growth org owner | `owner@growth.attune-sb.local`   | `GrowthOwnerPass#2026` |
+| Business owner   | `owner@business.attune-sb.local` | `BizOwnerPass#2026`    |
 
 The demo org starts on an active 14-day trial (2 published forms,
-50 submissions/mo, 10 document fills/mo, 1 uploaded template). Or sign up
-fresh at `http://localhost:3100/signup` — no credit card required.
+50 submissions/mo, 10 document fills/mo, 1 uploaded template). The
+solo/growth/business orgs carry an ACTIVE local subscription on that tier
+(no Stripe involved), so every plan gate and limit can be tested directly.
+Or sign up fresh at `http://localhost:3100/signup` — no credit card required.
 
 Template uploads are stored on local disk (`api/storage/` by default;
 override with `STORAGE_LOCAL_DIR`). An S3-compatible driver is backlogged
