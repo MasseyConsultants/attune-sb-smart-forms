@@ -94,6 +94,28 @@ beforeEach(() => {
   entitlements.getPlanSnapshot.mockResolvedValue(planWithTier('core'));
 });
 
+describe('WorkflowsService — create', () => {
+  it('seeds a start + end skeleton when created without nodes', async () => {
+    repository.create.mockResolvedValue(makeWorkflow());
+    const service = makeService();
+
+    await service.create({ name: 'Fresh flow' } as never, USER as never);
+
+    const created = repository.create.mock.calls[0][0];
+    const types = (created.nodes as { type: string }[]).map((n) => n.type);
+    expect(types).toEqual(['start', 'end']);
+  });
+
+  it('keeps caller-provided nodes untouched (library clones)', async () => {
+    repository.create.mockResolvedValue(makeWorkflow());
+    const service = makeService();
+
+    await service.create({ name: 'Cloned', nodes: VALID_NODES } as never, USER as never);
+
+    expect(repository.create.mock.calls[0][0].nodes).toEqual(VALID_NODES);
+  });
+});
+
 describe('WorkflowsService — publish', () => {
   it('publishes a valid graph: snapshots a version and flips to PUBLISHED', async () => {
     await makeService().publish('wf-1', USER as any);

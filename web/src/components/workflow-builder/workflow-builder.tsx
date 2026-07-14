@@ -42,12 +42,18 @@ const NODE_TYPES = Object.fromEntries(Object.keys(NODE_META).map((type) => [type
 const EDGE_LABEL_PRESETS = ['', 'Yes', 'No', 'Approved', 'Rejected', 'default', 'failure'];
 
 function toFlowNodes(workflow: WorkflowDetail): Node[] {
-  return workflow.nodes.map((n) => ({
+  const nodes: Node[] = workflow.nodes.map((n) => ({
     id: n.id,
     type: n.type,
     position: n.position,
     data: n.data ?? {},
   }));
+  // Workflows saved before start-node seeding can lack one; publish requires
+  // exactly one, and the palette deliberately doesn't offer it — restore it.
+  if (!nodes.some((n) => n.type === 'start')) {
+    nodes.unshift({ id: 'n-start', type: 'start', position: { x: 120, y: 80 }, data: {} });
+  }
+  return nodes;
 }
 
 function toFlowEdges(workflow: WorkflowDetail): Edge[] {
@@ -374,11 +380,16 @@ export function WorkflowBuilder({ workflow }: WorkflowBuilderProps): React.React
               edges={edges}
               nodeTypes={NODE_TYPES}
               onNodesChange={(changes) => {
-                if (editable) {
-                  onNodesChange(changes);
-                  if (changes.some((c) => c.type === 'position' || c.type === 'remove')) {
-                    markDirty();
-                  }
+                if (!editable) {
+                  return;
+                }
+                // The start node is structural (publish requires exactly one) —
+                // swallow keyboard/canvas deletes targeting it.
+                const startIds = new Set(nodes.filter((n) => n.type === 'start').map((n) => n.id));
+                const allowed = changes.filter((c) => !(c.type === 'remove' && startIds.has(c.id)));
+                onNodesChange(allowed);
+                if (allowed.some((c) => c.type === 'position' || c.type === 'remove')) {
+                  markDirty();
                 }
               }}
               onEdgesChange={(changes) => {

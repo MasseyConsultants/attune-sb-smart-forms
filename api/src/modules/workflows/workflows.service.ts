@@ -104,10 +104,19 @@ export class WorkflowsService {
     if (dto.triggerFormId) {
       await this.assertOwnedForm(dto.triggerFormId, user);
     }
+    // Publish requires exactly one start and an end; seed the skeleton so a
+    // fresh canvas is never empty (the palette deliberately has no start node).
+    const nodes =
+      dto.nodes && dto.nodes.length > 0
+        ? dto.nodes
+        : [
+            { id: 'n-start', type: 'start', position: { x: 120, y: 80 }, data: {} },
+            { id: 'n-end', type: 'end', position: { x: 120, y: 380 }, data: {} },
+          ];
     const workflow = await this.repository.create({
       name: dto.name,
       description: dto.description,
-      nodes: (dto.nodes ?? []) as unknown as Prisma.InputJsonValue,
+      nodes: nodes as unknown as Prisma.InputJsonValue,
       edges: (dto.edges ?? []) as unknown as Prisma.InputJsonValue,
       triggerFormId: dto.triggerFormId,
       color: dto.color,
