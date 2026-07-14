@@ -36,9 +36,16 @@ function tokenRecord(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const inAppNotifications = { emit: jest.fn().mockResolvedValue(undefined) };
+
 function makeService(): ApprovalsService {
   // Reason: structural mocks stand in for Nest providers in unit tests.
-  return new ApprovalsService(repository as any, orchestrator as any, logger as any);
+  return new ApprovalsService(
+    repository as any,
+    orchestrator as any,
+    logger as any,
+    inAppNotifications as any,
+  );
 }
 
 beforeEach(() => {

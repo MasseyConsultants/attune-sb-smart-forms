@@ -37,6 +37,7 @@ import {
   escapeHtml,
 } from '@/modules/notifications/email-brand-shell';
 import { EmailService } from '@/modules/notifications/email.service';
+import { InAppNotificationsService } from '@/modules/notifications/in-app-notifications.service';
 
 const PLAN_CACHE_TTL_SECONDS = 60;
 const USAGE_CACHE_TTL_SECONDS = 30;
@@ -70,6 +71,7 @@ export class EntitlementsService {
     private readonly config: ConfigService,
     private readonly logger: SecureLoggerService,
     private readonly emailService: EmailService,
+    private readonly inAppNotifications: InAppNotificationsService,
   ) {}
 
   // --- Plan resolution ---
@@ -369,6 +371,15 @@ export class EntitlementsService {
       `Org ${organizationId} crossed ${Math.round(SOFT_LIMIT_RATIO * 100)}% of ${counter.meter} (${used}/${limit})`,
       'EntitlementsService',
     );
+
+    const softMeterLabel = counter.meter.toLowerCase().replace(/_/g, ' ');
+    await this.inAppNotifications.emit({
+      organizationId,
+      type: 'usage_warning',
+      title: `${Math.round((used / limit) * 100)}% of your ${softMeterLabel} limit used`,
+      body: `Your workspace has used ${used.toLocaleString()} of ${limit.toLocaleString()} ${softMeterLabel} this period. Upgrading lifts the limit immediately.`,
+      link: '/billing',
+    });
 
     try {
       const owner = await this.repository.findOwnerEmail(organizationId);

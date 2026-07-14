@@ -5,9 +5,10 @@
 
 ## Current Status
 
-- **Phase:** P4 Workflow Builder — ✅ complete (S8 closed 2026-07-13);
-  next up P5 Library + Polish
-- **Current sprint:** Sprint 9 next (to be planned)
+- **Phase:** P5 Library + Polish — ✅ complete (S9 closed 2026-07-13); next up
+  P6 Launch Hardening (S10)
+- **Current sprint:** Sprint 9 closed — template gallery + clone flow,
+  in-app notifications, branding gate audit, admin console (SB-016)
 - **Version:** 0.1.0
 
 ## Phase Progress
@@ -19,7 +20,7 @@
 | P2 Form Builder     | S3–S4   | ✅ Complete | 2026-07-13 — engine, forms API, builder, public fill, submissions      |
 | P3 SmartMapper      | S5–S6   | ✅ Complete | 2026-07-13 — upload, canvas, auto-map, fill runtime, storage metering  |
 | P4 Workflow Builder | S7–S8   | ✅ Complete | 2026-07-13 — engine + visual builder, approvals, SSRF'd webhooks, runs |
-| P5 Library + Polish | S9      | Not started | —                                                                      |
+| P5 Library + Polish | S9      | ✅ Complete | 2026-07-13 — 27-template gallery, clone, notifications, admin console  |
 | P6 Launch Hardening | S10–S11 | Not started | —                                                                      |
 
 ## Sprint 0 Task Status
@@ -246,13 +247,42 @@
   `{{token}}` hints, runs view with expanded step ledger
 - P4 Workflow Builder phase closed — all three flagship systems now live
 
+## Sprint 9 Task Status
+
+| #   | Task                   | Status  | Notes                                                                     |
+| --- | ---------------------- | ------- | ------------------------------------------------------------------------- |
+| 1   | Library shared types   | ✅ Done | 8 categories, summary/detail/clone/publish contracts in shared-types      |
+| 2   | LibraryTemplate + API  | ✅ Done | PUBLIC/ORG scopes, @Public browse + detail, clone → DRAFTs, publish gate  |
+| 3   | Curated seed content   | ✅ Done | 27 templates across all 8 categories; 3 bundle workflows; idempotent seed |
+| 4   | Gallery UI             | ✅ Done | Public /gallery + /gallery/[slug] SSR; in-app /library w/ one-click clone |
+| 5   | In-app notifications   | ✅ Done | Model + feed API, bell w/ unread badge; 4 emitters wired (usage/approval/ |
+|     |                        |         | workflow-failed/trial-reminder)                                           |
+| 6   | Branding gate audit    | ✅ Done | Fixed thank-you screen dropping the "Powered by" footer; emails verified  |
+| 7   | Admin console (SB-016) | ✅ Done | PLATFORM_ADMIN org list/detail, legal hold, restore, override CRUD + UI   |
+| 8   | Tests                  | ✅ Done | 108 new API specs incl. per-template seed validation; 10 new web specs    |
+
+## Sprint 9 Verification (2026-07-13)
+
+- 476 API tests across 30 suites; 78 web tests across 15 suites; 42
+  form-engine tests — all green; lint + typecheck clean workspace-wide
+- Live E2E smoke (`scripts/smoke-sprint9.ps1`, 11 steps): unauthenticated
+  gallery browse (27 templates) + detail by slug → owner clone lands a DRAFT
+  form → notifications feed live → customer OWNER 403 on /admin/orgs →
+  publish-org-template 402 on trial (publishOrgTemplates gate) → platform
+  admin lists orgs, reads usage/members/counts, creates + deletes an
+  entitlement override, toggles legal hold → public /gallery SSR 200
+- Seed-data spec validates every curated template against the real publish
+  validator + workflow graph validator — a broken template cannot ship
+- Admin nav item renders only for PLATFORM_ADMIN (role check server-side in
+  the dashboard layout; API guard enforces independently)
+
 ## Quality Gates
 
-| Gate              | Target | Current                                                                           |
-| ----------------- | ------ | --------------------------------------------------------------------------------- |
-| API test coverage | 80%    | Improving — 26 suites / 368 tests; paywall + lifecycle + forms + docs + workflows |
-| Web test coverage | 70%    | Growing — 13 suites / 68 tests (+ 42 engine tests in form-engine)                 |
-| CI status         | Green  | Workflow added S0; validating on pushes                                           |
+| Gate              | Target | Current                                                                                             |
+| ----------------- | ------ | --------------------------------------------------------------------------------------------------- |
+| API test coverage | 80%    | Improving — 30 suites / 476 tests; paywall + lifecycle + forms + docs + workflows + library + admin |
+| Web test coverage | 70%    | Growing — 15 suites / 78 tests (+ 42 engine tests in form-engine)                                   |
+| CI status         | Green  | Workflow added S0; validating on pushes                                                             |
 
 ## Unplanned Items
 

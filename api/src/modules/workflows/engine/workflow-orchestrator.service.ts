@@ -31,6 +31,7 @@ import { SendDocumentStepAdapter } from './adapters/send-document-step.adapter';
 import type { StepAdapter, StepResult } from './step-adapter.interface';
 
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
+import { InAppNotificationsService } from '@/modules/notifications/in-app-notifications.service';
 
 // Hard ceiling on nodes per run — cycles are not validated away at publish, so
 // the runtime guards against them (enterprise uses 200; SMB graphs are smaller).
@@ -56,6 +57,7 @@ export class WorkflowOrchestratorService {
   constructor(
     private readonly repository: WorkflowsRepository,
     private readonly logger: SecureLoggerService,
+    private readonly inAppNotifications: InAppNotificationsService,
     conditionAdapter: ConditionStepAdapter,
     emailAdapter: EmailStepAdapter,
     pdfGenerateAdapter: PdfGenerateStepAdapter,
@@ -355,12 +357,19 @@ export class WorkflowOrchestratorService {
   }
 
   private async fail(runId: string, error: string): Promise<void> {
-    await this.repository.updateRun(runId, {
+    const run = await this.repository.updateRun(runId, {
       status: WorkflowRunStatus.FAILED,
       error,
       completedAt: new Date(),
     });
     this.logger.warn(`workflow.run.failed run=${runId}: ${error}`, 'WorkflowOrchestrator');
+    await this.inAppNotifications.emit({
+      organizationId: run.organizationId,
+      type: 'workflow_failed',
+      title: 'A workflow run failed',
+      body: error,
+      link: `/workflows/${run.workflowId}/runs`,
+    });
   }
 
   /**

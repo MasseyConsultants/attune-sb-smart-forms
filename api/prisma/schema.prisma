@@ -102,6 +102,13 @@ enum WorkflowRunStepStatus {
   SKIPPED
 }
 
+enum LibraryTemplateScope {
+  // Curated gallery — browsable without auth (SEO/acquisition surface).
+  PUBLIC
+  // Customer-published for their own org (publishOrgTemplates feature).
+  ORG
+}
+
 // --- Tenancy ---
 
 model Organization {
@@ -133,6 +140,8 @@ model Organization {
   documentTemplates    DocumentTemplate[]
   workflows            Workflow[]
   workflowRuns         WorkflowRun[]
+  libraryTemplates     LibraryTemplate[]
+  notifications        Notification[]
 
   @@index([lifecycleState])
   @@index([deletedAt])
@@ -626,6 +635,65 @@ model OrgTombstone {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("org_tombstones")
+}
+
+// --- Template library (S9) ---
+
+// A template bundles a form schema with an optional workflow graph. Cloning
+// materializes both as DRAFTs in the caller's org. PUBLIC rows are curated
+// (organizationId null); ORG rows are customer-published and only visible to
+// their org. Category is validated in code against LIBRARY_CATEGORIES.
+model LibraryTemplate {
+  id          String               @id @default(uuid())
+  slug        String               @unique
+  name        String
+  description String
+  category    String
+  scope       LibraryTemplateScope @default(PUBLIC)
+  // form-engine FormSchema contract
+  schema      Json
+  // { name, nodes, edges } | null — cloned as a DRAFT workflow when present
+  workflow    Json?
+  // Times cloned into an org — gallery social proof + curation signal.
+  installCount Int @default(0) @map("install_count")
+
+  // Null for curated PUBLIC templates.
+  organizationId String?       @map("organization_id")
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdById    String?       @map("created_by_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([scope, category])
+  @@index([organizationId])
+  @@index([deletedAt])
+  @@map("library_templates")
+}
+
+// --- In-app notifications (S9) ---
+
+// Org-scoped feed with optional user targeting (userId null = visible to all
+// org members). Emitters: usage soft-warnings, approval decisions, workflow
+// failures, trial reminders. Email delivery is separate (EmailService).
+model Notification {
+  id    String  @id @default(uuid())
+  type  String // 'usage_warning' | 'approval_decided' | 'workflow_failed' | 'trial_reminder' | ...
+  title String
+  body  String
+  link  String?
+
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?      @map("user_id")
+
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, readAt])
+  @@map("notifications")
 }
 
 // Trial-abuse fingerprint — purged trial orgs cannot re-trial for free.

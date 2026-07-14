@@ -167,13 +167,17 @@ export function FormRenderer({
 
   if (submitted) {
     return (
-      <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center">
-        <p className="text-lg font-semibold text-green-800">
-          {settings?.successTitle ?? 'Thank you!'}
-        </p>
-        <p className="mt-1 text-sm text-green-600">
-          {settings?.successMessage ?? 'Your submission has been received.'}
-        </p>
+      <div>
+        <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center">
+          <p className="text-lg font-semibold text-green-800">
+            {settings?.successTitle ?? 'Thank you!'}
+          </p>
+          <p className="mt-1 text-sm text-green-600">
+            {settings?.successMessage ?? 'Your submission has been received.'}
+          </p>
+        </div>
+        {/* Plan-gated branding must survive the thank-you screen (S9 audit). */}
+        {footer}
       </div>
     );
   }

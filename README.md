@@ -4,7 +4,7 @@
 > Self-serve, subscription-based forms + documents + workflow SaaS for small
 > businesses. Derivative of the enterprise `attune-smart-forms` platform.
 
-**Status:** Phase 4 complete (v0.1.0) — all three flagship systems are live.
+**Status:** Phase 5 complete (v0.1.0) — all three flagship systems are live.
 Self-serve signup with 14-day trial, entitlement/metering paywall, Stripe
 billing scaffolding, org data lifecycle, form builder with 30 field types,
 versioned publishing, public fill pages, submissions with quarantine-not-drop
@@ -16,7 +16,13 @@ ledgers. Runs execute on BullMQ when a submission lands — condition/switch
 branching, document fill/send, branded emails, human approvals via public
 email links (runs pause and resume), SSRF-guarded webhooks/API calls, data
 transforms, and CSV export — all metered (WORKFLOW_RUNS, EMAILS,
-STORAGE_BYTES). Next: P5 template library + polish.
+STORAGE_BYTES). P5 added the growth layer: a public template gallery at
+`/gallery` (27 curated templates across 8 SMB categories, some bundling
+workflows) with one-click clone into the builder, org-published templates
+(Growth+ `publishOrgTemplates` gate), in-app notifications (usage warnings,
+approval decisions, failed runs, trial reminders), and the PLATFORM_ADMIN
+support console at `/admin` (org list/detail, usage meters, legal hold,
+lifecycle restore, entitlement overrides). Next: P6 launch hardening.
 
 ## Stack
 

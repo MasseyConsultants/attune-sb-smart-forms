@@ -44,6 +44,7 @@ const entitlements = {
 };
 const storage = { deletePrefix: jest.fn().mockResolvedValue(undefined) };
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const inAppNotifications = { emit: jest.fn().mockResolvedValue(undefined) };
 
 const NOW = new Date('2026-08-01T12:00:00Z');
 
@@ -57,6 +58,7 @@ function makeService(): LifecycleService {
     entitlements as any,
     storage as any,
     logger as any,
+    inAppNotifications as any,
   );
 }
 

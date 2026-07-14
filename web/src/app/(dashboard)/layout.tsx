@@ -5,12 +5,22 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, FileStack, Workflow, CreditCard, Users } from 'lucide-react';
-import type { OrganizationProfile } from '@attune-sb/shared-types';
+import {
+  LayoutDashboard,
+  FileText,
+  FileStack,
+  Workflow,
+  CreditCard,
+  Users,
+  LibraryBig,
+  ShieldCheck,
+} from 'lucide-react';
+import type { OrganizationProfile, UserProfile } from '@attune-sb/shared-types';
 
 import { BRAND } from '@/lib/brand';
 import { apiGet } from '@/lib/api-server';
 import { ReadOnlyBanner } from '@/components/billing/read-only-banner';
+import { NotificationsBell } from '@/components/notifications/notifications-bell';
 import { LogoutButton } from './logout-button';
 
 interface NavItem {
@@ -40,6 +50,12 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
     icon: <Workflow className="h-4 w-4" />,
     enabled: true,
   },
+  {
+    label: 'Library',
+    href: '/library',
+    icon: <LibraryBig className="h-4 w-4" />,
+    enabled: true,
+  },
   { label: 'Team', href: '/team', icon: <Users className="h-4 w-4" />, enabled: false },
   {
     label: 'Billing',
@@ -54,7 +70,23 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }): Promise<React.ReactElement> {
-  const org = await apiGet<OrganizationProfile>('/organizations/me');
+  const [org, me] = await Promise.all([
+    apiGet<OrganizationProfile>('/organizations/me'),
+    apiGet<UserProfile>('/users/me'),
+  ]);
+
+  const navItems: NavItem[] =
+    me?.role === 'PLATFORM_ADMIN'
+      ? [
+          ...NAV_ITEMS,
+          {
+            label: 'Admin',
+            href: '/admin',
+            icon: <ShieldCheck className="h-4 w-4" />,
+            enabled: true,
+          },
+        ]
+      : [...NAV_ITEMS];
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -73,7 +105,7 @@ export default async function DashboardLayout({
           />
         </div>
         <nav className="flex-1 space-y-1 p-3">
-          {NAV_ITEMS.map((item) =>
+          {navItems.map((item) =>
             item.enabled ? (
               <Link
                 key={item.href}
@@ -115,8 +147,11 @@ export default async function DashboardLayout({
             />
           </div>
           <div className="hidden md:block" />
-          <div className="md:hidden">
-            <LogoutButton />
+          <div className="flex items-center gap-1">
+            <NotificationsBell />
+            <div className="md:hidden">
+              <LogoutButton />
+            </div>
           </div>
         </header>
         {org && (

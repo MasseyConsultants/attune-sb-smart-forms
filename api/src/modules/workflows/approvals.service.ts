@@ -13,6 +13,7 @@ import { WorkflowOrchestratorService } from './engine/workflow-orchestrator.serv
 import { WorkflowsRepository } from './workflows.repository';
 
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
+import { InAppNotificationsService } from '@/modules/notifications/in-app-notifications.service';
 
 @Injectable()
 export class ApprovalsService {
@@ -20,6 +21,7 @@ export class ApprovalsService {
     private readonly repository: WorkflowsRepository,
     private readonly orchestrator: WorkflowOrchestratorService,
     private readonly logger: SecureLoggerService,
+    private readonly inAppNotifications: InAppNotificationsService,
   ) {}
 
   /** Landing-page context. Used tokens still render (showing the outcome). */
@@ -68,6 +70,14 @@ export class ApprovalsService {
       `workflow.approval.decided run=${record.runId} node=${record.nodeId} decision=${decision}`,
       'ApprovalsService',
     );
+
+    await this.inAppNotifications.emit({
+      organizationId: record.organizationId,
+      type: 'approval_decided',
+      title: `Approval ${decision} — ${record.run.workflow.name}`,
+      body: `${record.assignedTo} ${decision} the request${note ? `: "${note}"` : '.'}`,
+      link: `/workflows/${record.run.workflowId}/runs`,
+    });
 
     await this.orchestrator.resume({
       runId: record.runId,

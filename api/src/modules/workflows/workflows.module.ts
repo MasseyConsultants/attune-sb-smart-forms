@@ -56,6 +56,6 @@ import { FormsModule } from '@/modules/forms/forms.module';
     DataTransformStepAdapter,
     ExportStepAdapter,
   ],
-  exports: [WorkflowTriggerService],
+  exports: [WorkflowTriggerService, WorkflowsRepository],
 })
 export class WorkflowsModule {}

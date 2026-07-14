@@ -31,6 +31,7 @@ import { SecureLoggerService } from '@/modules/common/logger/secure-logger.servi
 import { BlobStorageService } from '@/modules/common/storage/blob-storage.service';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
 import { EmailService } from '@/modules/notifications/email.service';
+import { InAppNotificationsService } from '@/modules/notifications/in-app-notifications.service';
 
 const CONTEXT = 'LifecycleService';
 const READ_ONLY_CACHE_PREFIX = 'lifecycle:readonly:';
@@ -56,6 +57,7 @@ export class LifecycleService {
     private readonly entitlements: EntitlementsService,
     private readonly storage: BlobStorageService,
     private readonly logger: SecureLoggerService,
+    private readonly inAppNotifications: InAppNotificationsService,
   ) {}
 
   // --- Read-only lookup (used by ReadOnlyGuard) ---
@@ -220,6 +222,13 @@ export class LifecycleService {
       dayOffset,
     });
     await this.emailService.send({ to: owner.email, subject, html });
+    await this.inAppNotifications.emit({
+      organizationId: org.id,
+      type: 'trial_reminder',
+      title: subject,
+      body: `Your workspace is read-only. Data will be deleted on ${org.purgeScheduledAt.toLocaleDateString()} unless you subscribe.`,
+      link: '/billing',
+    });
     await this.repository.updateSettings(org.id, {
       ...settings,
       lifecycleRemindersSent: [...sentKeys, key],

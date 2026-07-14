@@ -59,12 +59,14 @@ const approvalAdapter = {
 const httpAdapter = noopAdapter(['webhook', 'api']);
 const dataTransformAdapter = noopAdapter(['data_transform']);
 const exportAdapter = noopAdapter(['export']);
+const inAppNotifications = { emit: jest.fn().mockResolvedValue(undefined) };
 
 function makeOrchestrator(): WorkflowOrchestratorService {
   // Reason: structural mocks stand in for Nest providers in unit tests.
   return new WorkflowOrchestratorService(
     repository as any,
     logger as any,
+    inAppNotifications as any,
     conditionAdapter as any,
     emailAdapter as any,
     pdfAdapter as any,

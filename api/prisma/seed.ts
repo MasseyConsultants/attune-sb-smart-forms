@@ -3,8 +3,17 @@
 // a demo org on an active trial, and the Attune platform admin.
 // Run: pnpm db:seed (from repo root) or pnpm seed (from api/).
 
-import { PrismaClient, Role, SubscriptionStatus } from '@prisma/client';
+import { LIBRARY_CATEGORIES } from '@attune-sb/shared-types';
+import {
+  LibraryTemplateScope,
+  Prisma,
+  PrismaClient,
+  Role,
+  SubscriptionStatus,
+} from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+
+import { LIBRARY_SEED_TEMPLATES } from './library-seed-data';
 
 const prisma = new PrismaClient();
 
@@ -120,10 +129,38 @@ async function seedDemoOrg(): Promise<void> {
   console.warn('Seeded demo org with active trial');
 }
 
+async function seedLibraryTemplates(): Promise<void> {
+  // Upsert by stable slug: re-running refreshes curated content in place
+  // without duplicating rows or resetting install counts.
+  for (const template of LIBRARY_SEED_TEMPLATES) {
+    if (!(LIBRARY_CATEGORIES as readonly string[]).includes(template.category)) {
+      throw new Error(`Template ${template.slug} has unknown category "${template.category}"`);
+    }
+    const content = {
+      name: template.name,
+      description: template.description,
+      category: template.category,
+      scope: LibraryTemplateScope.PUBLIC,
+      schema: template.schema as unknown as Prisma.InputJsonValue,
+      workflow: template.workflow
+        ? (template.workflow as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
+      deletedAt: null,
+    };
+    await prisma.libraryTemplate.upsert({
+      where: { slug: template.slug },
+      create: { slug: template.slug, ...content },
+      update: content,
+    });
+  }
+  console.warn(`Seeded ${LIBRARY_SEED_TEMPLATES.length} library templates`);
+}
+
 async function main(): Promise<void> {
   await seedPlans();
   await seedPlatformAdmin();
   await seedDemoOrg();
+  await seedLibraryTemplates();
 
   console.warn('');
   console.warn('=== Seed complete — dev credentials ===');

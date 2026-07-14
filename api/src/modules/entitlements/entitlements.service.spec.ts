@@ -48,6 +48,8 @@ const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 const emailService = { send: jest.fn().mockResolvedValue(undefined) };
 
+const inAppNotifications = { emit: jest.fn().mockResolvedValue(undefined) };
+
 const ORG = 'org-1';
 
 function makeService(): EntitlementsService {
@@ -59,6 +61,7 @@ function makeService(): EntitlementsService {
     config as any,
     logger as any,
     emailService as any,
+    inAppNotifications as any,
   );
 }
 
