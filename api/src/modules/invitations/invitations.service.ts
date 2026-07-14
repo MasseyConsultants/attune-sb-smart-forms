@@ -29,6 +29,7 @@ import { InvitationsRepository, InviteRecord } from './invitations.repository';
 import type { AuthenticatedUser } from '@/modules/auth/strategies/jwt.strategy';
 import { checkPasswordPolicy } from '@/modules/auth/utils/password-policy';
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
+import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
 import {
   brandEmailShell,
   brandEmailButton,
@@ -60,6 +61,7 @@ export class InvitationsService {
     private readonly emailService: EmailService,
     private readonly logger: SecureLoggerService,
     private readonly config: ConfigService,
+    private readonly entitlements: EntitlementsService,
   ) {
     this.bcryptRounds = parseInt(this.config.get<string>('BCRYPT_ROUNDS', '12'), 10);
   }
@@ -91,6 +93,10 @@ export class InvitationsService {
         'A pending invitation for this email already exists. Use resend to refresh it.',
       );
     }
+
+    // Seat cap (SB-019): don't send an invite the org has no seat for.
+    // Throws LIMIT_EXCEEDED (402) with limit/current/upgradeUrl.
+    await this.entitlements.assertCountedAvailable(targetOrgId, 'users');
 
     const rawToken = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
@@ -127,6 +133,11 @@ export class InvitationsService {
     password: string,
   ): Promise<{ userId: string; email: string }> {
     const record = await this.findActiveToken(rawToken);
+
+    // Re-check the seat cap at accept time — seats can fill (or the plan can
+    // downgrade) between invite and accept. The invite stays pending so it
+    // works again once a seat frees up or the org upgrades.
+    await this.entitlements.assertCountedAvailable(record.orgId, 'users');
 
     const policyResult = checkPasswordPolicy(password, {
       firstName: record.firstName,

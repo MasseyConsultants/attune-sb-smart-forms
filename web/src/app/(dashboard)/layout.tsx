@@ -56,7 +56,7 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
     icon: <LibraryBig className="h-4 w-4" />,
     enabled: true,
   },
-  { label: 'Team', href: '/team', icon: <Users className="h-4 w-4" />, enabled: false },
+  { label: 'Team', href: '/team', icon: <Users className="h-4 w-4" />, enabled: true },
   {
     label: 'Billing',
     href: '/billing',

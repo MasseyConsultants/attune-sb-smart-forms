@@ -23,6 +23,8 @@
 | SB-013 | P3       | EU data residency                                                                                               | Compliance                    | On demand                 | —                                                                                              |
 | SB-016 | P1       | Platform admin console (orgs, users, subscriptions, usage, lifecycle/legal-hold actions, support impersonation) | Owner request 2026-07-13      | **✅ Done S9**            | Shipped read-mostly (list/detail/legal-hold/restore/overrides); impersonation stays backlogged |
 | SB-017 | P2       | S3/R2 blob-storage driver + presigned upload flow                                                               | S5 ADR-0003 (local disk v1)   | Pre-multi-instance deploy | BlobStorageService interface is S3-shaped; swap without touching callers                       |
+| SB-018 | P1       | Team management UI (/team: member list, invite form, role change, deactivate, pending invites)                  | Owner question 2026-07-13     | **✅ Done S9**            | /team page + BFF routes + hooks; seats meter + upgrade CTA; nav enabled                        |
+| SB-019 | P1       | Enforce per-plan seat cap (maxUsers) on invite creation + accept                                                | Found during SB-018 review    | **✅ Done S9**            | assertCountedAvailable('users') at invite create AND accept; 402 keeps invite pending          |
 
 ## Completed
 

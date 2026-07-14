@@ -249,17 +249,19 @@
 
 ## Sprint 9 Task Status
 
-| #   | Task                   | Status  | Notes                                                                     |
-| --- | ---------------------- | ------- | ------------------------------------------------------------------------- |
-| 1   | Library shared types   | ✅ Done | 8 categories, summary/detail/clone/publish contracts in shared-types      |
-| 2   | LibraryTemplate + API  | ✅ Done | PUBLIC/ORG scopes, @Public browse + detail, clone → DRAFTs, publish gate  |
-| 3   | Curated seed content   | ✅ Done | 27 templates across all 8 categories; 3 bundle workflows; idempotent seed |
-| 4   | Gallery UI             | ✅ Done | Public /gallery + /gallery/[slug] SSR; in-app /library w/ one-click clone |
-| 5   | In-app notifications   | ✅ Done | Model + feed API, bell w/ unread badge; 4 emitters wired (usage/approval/ |
-|     |                        |         | workflow-failed/trial-reminder)                                           |
-| 6   | Branding gate audit    | ✅ Done | Fixed thank-you screen dropping the "Powered by" footer; emails verified  |
-| 7   | Admin console (SB-016) | ✅ Done | PLATFORM_ADMIN org list/detail, legal hold, restore, override CRUD + UI   |
-| 8   | Tests                  | ✅ Done | 108 new API specs incl. per-template seed validation; 10 new web specs    |
+| #   | Task                   | Status  | Notes                                                                      |
+| --- | ---------------------- | ------- | -------------------------------------------------------------------------- |
+| 1   | Library shared types   | ✅ Done | 8 categories, summary/detail/clone/publish contracts in shared-types       |
+| 2   | LibraryTemplate + API  | ✅ Done | PUBLIC/ORG scopes, @Public browse + detail, clone → DRAFTs, publish gate   |
+| 3   | Curated seed content   | ✅ Done | 27 templates across all 8 categories; 3 bundle workflows; idempotent seed  |
+| 4   | Gallery UI             | ✅ Done | Public /gallery + /gallery/[slug] SSR; in-app /library w/ one-click clone  |
+| 5   | In-app notifications   | ✅ Done | Model + feed API, bell w/ unread badge; 4 emitters wired (usage/approval/  |
+|     |                        |         | workflow-failed/trial-reminder)                                            |
+| 6   | Branding gate audit    | ✅ Done | Fixed thank-you screen dropping the "Powered by" footer; emails verified   |
+| 7   | Admin console (SB-016) | ✅ Done | PLATFORM_ADMIN org list/detail, legal hold, restore, override CRUD + UI    |
+| 8   | Tests                  | ✅ Done | 108 new API specs incl. per-template seed validation; 10 new web specs     |
+| 9   | Team mgmt UI (SB-018)  | ✅ Done | /team: members, role change, deactivate, invites, seats meter; nav enabled |
+| 10  | Seat cap (SB-019)      | ✅ Done | maxUsers enforced at invite create AND accept (402; invite stays pending)  |
 
 ## Sprint 9 Verification (2026-07-13)
 
@@ -275,13 +277,19 @@
   validator + workflow graph validator — a broken template cannot ship
 - Admin nav item renders only for PLATFORM_ADMIN (role check server-side in
   the dashboard layout; API guard enforces independently)
+- SB-018/SB-019 follow-up (post-review, same day): 483 API tests across 31
+  suites; 83 web tests across 16 suites — all green. Live team smoke (7
+  checks): accept under cap creates account → invite at cap 402
+  LIMIT_EXCEEDED → accept at cap 402 with invite left pending → member list /
+  role change / deactivate round-trip → invite succeeds again after the seat
+  frees
 
 ## Quality Gates
 
 | Gate              | Target | Current                                                                                             |
 | ----------------- | ------ | --------------------------------------------------------------------------------------------------- |
-| API test coverage | 80%    | Improving — 30 suites / 476 tests; paywall + lifecycle + forms + docs + workflows + library + admin |
-| Web test coverage | 70%    | Growing — 15 suites / 78 tests (+ 42 engine tests in form-engine)                                   |
+| API test coverage | 80%    | Improving — 31 suites / 483 tests; paywall + lifecycle + forms + docs + workflows + library + admin |
+| Web test coverage | 70%    | Growing — 16 suites / 83 tests (+ 42 engine tests in form-engine)                                   |
 | CI status         | Green  | Workflow added S0; validating on pushes                                                             |
 
 ## Unplanned Items
