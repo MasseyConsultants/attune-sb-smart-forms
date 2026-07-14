@@ -283,6 +283,12 @@
   LIMIT_EXCEEDED → accept at cap 402 with invite left pending → member list /
   role change / deactivate round-trip → invite succeeds again after the seat
   frees
+- Owner-testing polish (2026-07-14): sidebar brand decorations; org-wide
+  /submissions view (form/member filters, JSON text search, CSV export);
+  SB-020 form-first workflow UX — start node renders the bound form as a
+  card (name + fields + friendly types), start config binds the trigger form
+  in-canvas, clickable field chips insert {{tokens}} in every token-capable
+  node config. 18 web suites / 95 tests green; verified live in the builder
 
 ## Quality Gates
 

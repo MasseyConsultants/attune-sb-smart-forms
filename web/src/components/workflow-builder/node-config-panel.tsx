@@ -6,7 +6,7 @@
 'use client';
 
 import type { WorkflowNodeType } from '@attune-sb/shared-types';
-import { Trash2, X } from 'lucide-react';
+import { FileText, Plus, Trash2, X } from 'lucide-react';
 
 import { NODE_META } from './node-catalog';
 
@@ -17,6 +17,11 @@ interface FieldOption {
   readonly label: string;
 }
 
+interface FormOption {
+  readonly id: string;
+  readonly name: string;
+}
+
 interface NodeConfigPanelProps {
   readonly nodeId: string;
   readonly nodeType: WorkflowNodeType;
@@ -25,7 +30,17 @@ interface NodeConfigPanelProps {
   readonly onChange: (key: string, value: unknown) => void;
   readonly onDelete: () => void;
   readonly onClose: () => void;
+  /** Start-node form binding (SB-020). */
+  readonly triggerFormId?: string | null;
+  readonly formOptions?: readonly FormOption[];
+  readonly onTriggerFormChange?: (formId: string) => void;
 }
+
+// Run facts every workflow carries besides the form's own fields.
+const META_TOKENS: readonly FieldOption[] = [
+  { id: '_formName', label: 'Form name' },
+  { id: '_date', label: "Today's date" },
+];
 
 const OPERATORS = [
   'equals',
@@ -43,33 +58,59 @@ function Text({
   onChange,
   placeholder,
   multiline,
+  tokens,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   multiline?: boolean;
+  /** Clickable form-field chips that insert {{tokens}} — no typing required. */
+  tokens?: readonly FieldOption[];
 }): React.ReactElement {
+  const insertToken = (id: string): void => {
+    const separator = value && !value.endsWith(' ') && !multiline ? ' ' : '';
+    onChange(`${value}${separator}{{${id}}}`);
+  };
+
   return (
-    <label className="block space-y-1">
-      <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
-      {multiline ? (
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          rows={4}
-          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs"
-        />
-      ) : (
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs"
-        />
+    <div className="space-y-1">
+      <label className="block space-y-1">
+        <span className="text-[11px] font-medium text-muted-foreground">{label}</span>
+        {multiline ? (
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            rows={4}
+            className="w-full rounded-md border bg-background px-2 py-1.5 text-xs"
+          />
+        ) : (
+          <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="w-full rounded-md border bg-background px-2 py-1.5 text-xs"
+          />
+        )}
+      </label>
+      {tokens && tokens.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {tokens.map((token) => (
+            <button
+              key={token.id}
+              type="button"
+              onClick={() => insertToken(token.id)}
+              title={`Insert the "${token.label}" answer here`}
+              className="inline-flex items-center gap-0.5 rounded-full border border-dashed bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-[var(--brand-primary,#F97316)] hover:text-foreground"
+            >
+              <Plus className="h-2.5 w-2.5" />
+              {token.label}
+            </button>
+          ))}
+        </div>
       )}
-    </label>
+    </div>
   );
 }
 
@@ -182,11 +223,23 @@ function ConfigFields({
   data,
   fieldOptions,
   onChange,
+  triggerFormId,
+  formOptions,
+  onTriggerFormChange,
 }: Pick<
   NodeConfigPanelProps,
-  'nodeType' | 'data' | 'fieldOptions' | 'onChange'
+  | 'nodeType'
+  | 'data'
+  | 'fieldOptions'
+  | 'onChange'
+  | 'triggerFormId'
+  | 'formOptions'
+  | 'onTriggerFormChange'
 >): React.ReactElement {
   const text = (key: string): string => String(data[key] ?? '');
+  // Email-shaped inputs only offer field answers; subject/body also get run facts.
+  const valueTokens = fieldOptions;
+  const textTokens = [...fieldOptions, ...META_TOKENS];
 
   switch (nodeType) {
     case 'email':
@@ -196,13 +249,15 @@ function ConfigFields({
             label="To"
             value={text('to')}
             onChange={(v) => onChange('to', v)}
-            placeholder="ops@yourco.com or {{email}}"
+            placeholder="ops@yourco.com — or click a chip below"
+            tokens={valueTokens}
           />
           <Text
             label="Subject"
             value={text('subject')}
             onChange={(v) => onChange('subject', v)}
             placeholder="New {{_formName}} submission"
+            tokens={textTokens}
           />
           <Text
             label="Body"
@@ -210,6 +265,7 @@ function ConfigFields({
             onChange={(v) => onChange('body', v)}
             placeholder={'Hi,\n\n{{name}} just submitted the form.'}
             multiline
+            tokens={textTokens}
           />
         </>
       );
@@ -221,12 +277,14 @@ function ConfigFields({
             value={text('to')}
             onChange={(v) => onChange('to', v)}
             placeholder="Defaults to the account owner"
+            tokens={valueTokens}
           />
           <Text
             label="Message"
             value={text('message')}
             onChange={(v) => onChange('message', v)}
             multiline
+            tokens={textTokens}
           />
         </>
       );
@@ -282,13 +340,15 @@ function ConfigFields({
             label="Approver email"
             value={text('to')}
             onChange={(v) => onChange('to', v)}
-            placeholder="manager@yourco.com or {{email}}"
+            placeholder="manager@yourco.com — or click a chip below"
+            tokens={valueTokens}
           />
           <Text
             label="Message"
             value={text('message')}
             onChange={(v) => onChange('message', v)}
             multiline
+            tokens={textTokens}
           />
           <Text
             label="Link expires (days)"
@@ -326,6 +386,7 @@ function ConfigFields({
               onChange={(v) => onChange('body', v)}
               placeholder='{"name": "{{name}}"}'
               multiline
+              tokens={textTokens}
             />
           )}
           <p className="text-[10px] text-muted-foreground">
@@ -357,6 +418,7 @@ function ConfigFields({
           value={text('to')}
           onChange={(v) => onChange('to', v)}
           placeholder="ops@yourco.com"
+          tokens={valueTokens}
         />
       );
     case 'send_document':
@@ -366,18 +428,25 @@ function ConfigFields({
             label="To"
             value={text('to')}
             onChange={(v) => onChange('to', v)}
-            placeholder="{{email}} sends to the submitter"
+            placeholder="Click an email chip to send to the submitter"
+            tokens={valueTokens}
           />
           <Text
             label="Attachment filename"
             value={text('filename')}
             onChange={(v) => onChange('filename', v)}
+            tokens={textTokens}
           />
         </>
       );
     case 'pdf_generate':
       return (
-        <Text label="PDF title" value={text('title')} onChange={(v) => onChange('title', v)} />
+        <Text
+          label="PDF title"
+          value={text('title')}
+          onChange={(v) => onChange('title', v)}
+          tokens={textTokens}
+        />
       );
     case 'fill_document':
       return (
@@ -387,6 +456,51 @@ function ConfigFields({
         </p>
       );
     case 'start':
+      return (
+        <>
+          <label className="block space-y-1">
+            <span className="text-[11px] font-medium text-muted-foreground">
+              Which form starts this flow?
+            </span>
+            <select
+              value={triggerFormId ?? ''}
+              onChange={(e) => onTriggerFormChange?.(e.target.value)}
+              disabled={!onTriggerFormChange}
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-xs"
+            >
+              <option value="">Choose a form…</option>
+              {(formOptions ?? []).map((form) => (
+                <option key={form.id} value={form.id}>
+                  {form.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {fieldOptions.length > 0 ? (
+            <div className="space-y-1">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Answers this form collects
+              </span>
+              <div className="space-y-0.5 rounded-md border bg-muted/20 px-2 py-1.5">
+                {fieldOptions.map((field) => (
+                  <p key={field.id} className="flex items-center gap-1.5 text-[11px]">
+                    <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    {field.label}
+                  </p>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Every step after this one can use these answers — look for the chips under each text
+                box.
+              </p>
+            </div>
+          ) : (
+            <p className="text-[10px] text-muted-foreground">
+              Pick a form and its questions will appear here, ready to use in every later step.
+            </p>
+          )}
+        </>
+      );
     case 'end':
     case 'form':
     case 'delay':
@@ -409,6 +523,9 @@ export function NodeConfigPanel({
   onChange,
   onDelete,
   onClose,
+  triggerFormId,
+  formOptions,
+  onTriggerFormChange,
 }: NodeConfigPanelProps): React.ReactElement {
   const meta = NODE_META[nodeType];
   const deletable = nodeType !== 'start';
@@ -437,23 +554,11 @@ export function NodeConfigPanel({
           data={data}
           fieldOptions={fieldOptions}
           onChange={onChange}
+          triggerFormId={triggerFormId}
+          formOptions={formOptions}
+          onTriggerFormChange={onTriggerFormChange}
         />
       </div>
-
-      {fieldOptions.length > 0 && (
-        <div className="rounded-md bg-muted/40 p-2">
-          <p className="mb-1 text-[10px] font-medium text-muted-foreground">
-            Form fields (use as {'{{token}}'})
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {fieldOptions.slice(0, 12).map((f) => (
-              <code key={f.id} className="rounded bg-background px-1 py-0.5 text-[10px]">
-                {`{{${f.id}}}`}
-              </code>
-            ))}
-          </div>
-        </div>
-      )}
 
       {deletable && (
         <Button size="sm" variant="outline" className="mt-auto text-red-600" onClick={onDelete}>

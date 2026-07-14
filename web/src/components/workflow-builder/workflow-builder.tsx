@@ -27,12 +27,13 @@ import '@xyflow/react/dist/style.css';
 
 import { NODE_META, PALETTE_GROUPS, isAboveTier } from './node-catalog';
 import { NodeConfigPanel } from './node-config-panel';
+import { TriggerFormContext, type TriggerFormInfo } from './trigger-form-context';
 import { WorkflowNode } from './workflow-node';
 
 import { UpgradeCta } from '@/components/billing/upgrade-cta';
 import { Button } from '@/components/ui/button';
 import { useEntitlement } from '@/hooks/use-billing';
-import { LimitExceededError, useForm } from '@/hooks/use-forms';
+import { LimitExceededError, useForm, useFormsList } from '@/hooks/use-forms';
 import { useSaveWorkflow, useWorkflowAction } from '@/hooks/use-workflows';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +76,7 @@ export function WorkflowBuilder({ workflow }: WorkflowBuilderProps): React.React
   const save = useSaveWorkflow(workflow.id);
   const action = useWorkflowAction(workflow.id);
   const triggerForm = useForm(workflow.triggerFormId ?? '');
+  const formsList = useFormsList();
 
   const published = workflow.status === WorkflowStatus.PUBLISHED;
   const editable = !published;
@@ -85,8 +87,38 @@ export function WorkflowBuilder({ workflow }: WorkflowBuilderProps): React.React
     const displayOnly = new Set(['section', 'pagebreak', 'thankyou']);
     return fields
       .filter((f) => !displayOnly.has(f.type))
-      .map((f) => ({ id: f.id, label: f.label || f.id }));
+      .map((f) => ({ id: f.id, label: f.label || f.id, type: f.type }));
   }, [triggerForm.data]);
+
+  // Feeds the start node's form card (SB-020) — name + fields on the canvas.
+  const triggerFormInfo = useMemo<TriggerFormInfo>(
+    () => ({
+      formName: workflow.triggerFormId
+        ? (triggerForm.data?.name ?? workflow.triggerFormName)
+        : null,
+      fields: fieldOptions,
+    }),
+    [workflow.triggerFormId, workflow.triggerFormName, triggerForm.data, fieldOptions],
+  );
+
+  const formOptions = useMemo(
+    () => (formsList.data?.forms ?? []).map((f) => ({ id: f.id, name: f.name })),
+    [formsList.data],
+  );
+
+  const handleTriggerFormChange = useCallback(
+    (formId: string): void => {
+      setFeedback(null);
+      save.mutate(
+        { triggerFormId: formId || null },
+        {
+          onSuccess: () => setFeedback('Trigger form updated'),
+          onError: (err) => setFeedback(err instanceof Error ? err.message : 'Update failed'),
+        },
+      );
+    },
+    [save],
+  );
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
@@ -239,7 +271,7 @@ export function WorkflowBuilder({ workflow }: WorkflowBuilderProps): React.React
             {workflow.triggerFormName ? (
               <>Triggered by “{workflow.triggerFormName}”</>
             ) : (
-              'No trigger form — set one on the workflows page before publishing'
+              'No form linked — click the green start node to choose one'
             )}
             {published && ` · published v${workflow.version}`}
           </p>
@@ -336,47 +368,49 @@ export function WorkflowBuilder({ workflow }: WorkflowBuilderProps): React.React
 
         {/* Flow canvas */}
         <div className="min-w-0 flex-1">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={NODE_TYPES}
-            onNodesChange={(changes) => {
-              if (editable) {
-                onNodesChange(changes);
-                if (changes.some((c) => c.type === 'position' || c.type === 'remove')) {
-                  markDirty();
+          <TriggerFormContext.Provider value={triggerFormInfo}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={NODE_TYPES}
+              onNodesChange={(changes) => {
+                if (editable) {
+                  onNodesChange(changes);
+                  if (changes.some((c) => c.type === 'position' || c.type === 'remove')) {
+                    markDirty();
+                  }
                 }
-              }
-            }}
-            onEdgesChange={(changes) => {
-              if (editable) {
-                onEdgesChange(changes);
-                if (changes.some((c) => c.type === 'remove')) {
-                  markDirty();
+              }}
+              onEdgesChange={(changes) => {
+                if (editable) {
+                  onEdgesChange(changes);
+                  if (changes.some((c) => c.type === 'remove')) {
+                    markDirty();
+                  }
                 }
-              }
-            }}
-            onConnect={editable ? onConnect : undefined}
-            onNodeClick={(_event, n) => {
-              setSelectedNodeId(n.id);
-              setSelectedEdgeId(null);
-            }}
-            onEdgeClick={(_event, e) => {
-              setSelectedEdgeId(e.id);
-              setSelectedNodeId(null);
-            }}
-            onPaneClick={() => {
-              setSelectedNodeId(null);
-              setSelectedEdgeId(null);
-            }}
-            fitView
-            proOptions={{ hideAttribution: true }}
-            defaultEdgeOptions={{ type: 'smoothstep' }}
-          >
-            <Background gap={16} />
-            <Controls showInteractive={false} />
-            <MiniMap pannable zoomable className="!h-24 !w-36" />
-          </ReactFlow>
+              }}
+              onConnect={editable ? onConnect : undefined}
+              onNodeClick={(_event, n) => {
+                setSelectedNodeId(n.id);
+                setSelectedEdgeId(null);
+              }}
+              onEdgeClick={(_event, e) => {
+                setSelectedEdgeId(e.id);
+                setSelectedNodeId(null);
+              }}
+              onPaneClick={() => {
+                setSelectedNodeId(null);
+                setSelectedEdgeId(null);
+              }}
+              fitView
+              proOptions={{ hideAttribution: true }}
+              defaultEdgeOptions={{ type: 'smoothstep' }}
+            >
+              <Background gap={16} />
+              <Controls showInteractive={false} />
+              <MiniMap pannable zoomable className="!h-24 !w-36" />
+            </ReactFlow>
+          </TriggerFormContext.Provider>
         </div>
 
         {/* Config panel */}
@@ -389,6 +423,9 @@ export function WorkflowBuilder({ workflow }: WorkflowBuilderProps): React.React
             onChange={updateNodeData}
             onDelete={deleteSelectedNode}
             onClose={() => setSelectedNodeId(null)}
+            triggerFormId={workflow.triggerFormId}
+            formOptions={formOptions}
+            onTriggerFormChange={editable ? handleTriggerFormChange : undefined}
           />
         )}
         {selectedEdge && !selectedNode && (
