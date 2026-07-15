@@ -1,5 +1,5 @@
 // Author: Robert Massey | Created: 2026-07-13 | Module: Seed / Library
-// Purpose: The curated PUBLIC gallery templates (37). Slugs are stable —
+// Purpose: The curated PUBLIC gallery templates (39). Slugs are stable —
 // the seed upserts by slug so re-running refreshes content without duplicating
 // rows or resetting install counts. Every schema must pass
 // FormsService.validateSchema and every bundled graph must pass validateGraph;
@@ -9,6 +9,7 @@ import type {
   FieldDefinition,
   FieldType,
   FormSchema,
+  LibraryDocumentRef,
   LibraryTemplateCategory,
   LibraryWorkflowGraph,
 } from '@attune-sb/shared-types';
@@ -20,6 +21,8 @@ export interface LibrarySeedTemplate {
   readonly category: LibraryTemplateCategory;
   readonly schema: FormSchema;
   readonly workflow?: LibraryWorkflowGraph;
+  /** Bundled pre-mapped PDF blueprint, materialized on clone. */
+  readonly document?: LibraryDocumentRef;
 }
 
 interface FieldOptions {
@@ -1287,7 +1290,7 @@ export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
         {
           id: 'n-send-client',
           type: 'send_document',
-          position: { x: 440, y: -80 },
+          position: { x: 440, y: 0 },
           data: {
             to: '{{client-email}}',
             subject: 'Your signed service agreement',
@@ -1298,7 +1301,7 @@ export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
         {
           id: 'n-send-owner',
           type: 'send_document',
-          position: { x: 440, y: 80 },
+          position: { x: 660, y: 0 },
           data: {
             to: '',
             subject: 'Agreement signed: {{client-name}}',
@@ -1306,14 +1309,15 @@ export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
             filename: 'agreement_{{client-name}}.pdf',
           },
         },
-        { id: 'n-end', type: 'end', position: { x: 660, y: 0 }, data: {} },
+        { id: 'n-end', type: 'end', position: { x: 880, y: 0 }, data: {} },
       ],
+      // Chained (not fanned out): the run walker follows one edge per node,
+      // so parallel unlabeled branches would silently drop the second send.
       edges: [
         { id: 'e1', source: 'n-start', target: 'n-pdf' },
         { id: 'e2', source: 'n-pdf', target: 'n-send-client' },
-        { id: 'e3', source: 'n-pdf', target: 'n-send-owner' },
-        { id: 'e4', source: 'n-send-client', target: 'n-end' },
-        { id: 'e5', source: 'n-send-owner', target: 'n-end' },
+        { id: 'e3', source: 'n-send-client', target: 'n-send-owner' },
+        { id: 'e4', source: 'n-send-owner', target: 'n-end' },
       ],
     },
   },
@@ -1802,6 +1806,199 @@ export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
         { id: 'e2', source: 'n-pdf', target: 'n-send' },
         { id: 'e3', source: 'n-send', target: 'n-notify' },
         { id: 'e4', source: 'n-notify', target: 'n-end' },
+      ],
+    },
+  },
+
+  // =========================================================================
+  // ORDERS & REQUESTS — document-first quote templates. These bundle a
+  // pre-mapped professional PDF blueprint (see library/document-blueprints.ts)
+  // so the fill_document workflow produces a branded quote with zero setup.
+  // Field IDs MUST match the blueprint's mapping fieldIds — the seed spec
+  // cross-checks them.
+  // =========================================================================
+  {
+    slug: 'contractor-job-quote',
+    name: 'Contractor Job Quote',
+    description:
+      'Quote a job in the field and email the customer a professional PDF instantly: customer details, scope of work, itemized pricing, and your signature — mapped onto a ready-made branded quote document.',
+    category: 'orders',
+    document: { blueprint: 'contractor-quote' },
+    schema: {
+      fields: fields(
+        f('sec-quote', 'section', 'Quote Details'),
+        f('quote-date', 'date', 'Quote Date', { required: true }),
+        f('valid-days', 'dropdown', 'Quote valid for', {
+          required: true,
+          config: { options: ['7 days', '14 days', '30 days', '60 days'] },
+        }),
+        f('prepared-by', 'text', 'Prepared by', {
+          required: true,
+          config: { placeholder: 'Your name or company' },
+        }),
+        f('sec-customer', 'section', 'Customer'),
+        f('customer-name', 'text', 'Customer Name', { required: true }),
+        f('customer-email', 'email', 'Customer Email', {
+          required: true,
+          description: 'The finished quote PDF is emailed here automatically.',
+        }),
+        f('customer-phone', 'phone', 'Customer Phone'),
+        f('job-address', 'text', 'Job Address', {
+          config: { placeholder: 'Street, city, state' },
+        }),
+        f('sec-project', 'section', 'Project'),
+        f('job-title', 'text', 'Job Title', {
+          required: true,
+          config: { placeholder: 'e.g. Kitchen remodel — 123 Main St' },
+        }),
+        f('job-description', 'multiline', 'Description of Work', {
+          required: true,
+          config: { rows: 4, placeholder: 'Scope, materials grade, timeline...' },
+        }),
+        f('sec-pricing', 'section', 'Pricing'),
+        f('materials-cost', 'number', 'Materials ($)', { required: true }),
+        f('labor-cost', 'number', 'Labor ($)', { required: true }),
+        f('other-cost', 'number', 'Other / Permits ($)'),
+        f('total-price', 'number', 'Total Quoted Price ($)', { required: true }),
+        f('notes', 'multiline', 'Notes, Exclusions & Payment Terms', {
+          config: { rows: 3, placeholder: 'e.g. 50% deposit to schedule; excludes appliances' },
+        }),
+        f('signature', 'signature', 'Your Signature', { required: true }),
+      ),
+      settings: { submitButtonText: 'Generate & Send Quote' },
+    },
+    workflow: {
+      name: 'Quote PDF to customer + your records',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        { id: 'n-fill', type: 'fill_document', position: { x: 220, y: 0 }, data: {} },
+        {
+          id: 'n-send-customer',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '{{customer-email}}',
+            subject: 'Your quote: {{job-title}}',
+            body: 'Hi {{customer-name}},\n\nThanks for the opportunity — your quote is attached. It is valid for {{valid-days}}. Reply to this email with any questions or to get on the schedule.\n\n{{prepared-by}}',
+            filename: 'quote_{{customer-name}}.pdf',
+          },
+        },
+        {
+          id: 'n-send-owner',
+          type: 'send_document',
+          position: { x: 660, y: 0 },
+          data: {
+            to: '',
+            subject: 'Quote sent: {{job-title}} ({{total-price}})',
+            body: 'Copy of the quote sent to {{customer-name}} ({{customer-email}}) is attached for your records.',
+            filename: 'quote_{{customer-name}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 880, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-fill' },
+        { id: 'e2', source: 'n-fill', target: 'n-send-customer' },
+        { id: 'e3', source: 'n-send-customer', target: 'n-send-owner' },
+        { id: 'e4', source: 'n-send-owner', target: 'n-end' },
+      ],
+    },
+  },
+  {
+    slug: 'framing-drywall-quote',
+    name: 'Framing & Drywall Quote',
+    description:
+      'Built for framers and drywall subs: enter the job dimensions (wall length, height, ceiling area) and your rates, and a professional measured quote PDF goes straight to the customer.',
+    category: 'orders',
+    document: { blueprint: 'trade-quote' },
+    schema: {
+      fields: fields(
+        f('sec-quote', 'section', 'Quote Details'),
+        f('quote-date', 'date', 'Quote Date', { required: true }),
+        f('prepared-by', 'text', 'Prepared by', {
+          required: true,
+          config: { placeholder: 'Your name or company' },
+        }),
+        f('sec-customer', 'section', 'Customer'),
+        f('customer-name', 'text', 'Customer Name', { required: true }),
+        f('customer-email', 'email', 'Customer Email', {
+          required: true,
+          description: 'The finished quote PDF is emailed here automatically.',
+        }),
+        f('customer-phone', 'phone', 'Customer Phone'),
+        f('project-address', 'text', 'Project Address', {
+          config: { placeholder: 'Street, city, state' },
+        }),
+        f('sec-scope', 'section', 'Scope of Work'),
+        f('work-type', 'radio', 'Work Type', {
+          required: true,
+          config: { options: ['Framing', 'Drywall', 'Framing + Drywall'] },
+        }),
+        f('sec-measure', 'section', 'Measurements'),
+        f('wall-length-ft', 'number', 'Total Wall Length (ft)', {
+          required: true,
+          description: 'Add up the lengths of every wall in the job.',
+        }),
+        f('wall-height-ft', 'number', 'Wall Height (ft)', { required: true }),
+        f('wall-area-sqft', 'number', 'Wall Area (sq ft)', {
+          required: true,
+          description: 'Length x height, minus large openings.',
+        }),
+        f('ceiling-area-sqft', 'number', 'Ceiling Area (sq ft)', {
+          description: 'Leave blank if ceilings are not in scope.',
+        }),
+        f('openings-count', 'number', 'Doors & Windows (count)'),
+        f('stud-spacing', 'dropdown', 'Stud Spacing', {
+          config: { options: ['16 in. on center', '24 in. on center', 'N/A (drywall only)'] },
+        }),
+        f('sec-rates', 'section', 'Your Rates'),
+        f('material-rate', 'number', 'Material Rate ($ per sq ft)'),
+        f('labor-rate', 'number', 'Labor Rate ($ per sq ft)'),
+        f('sec-pricing', 'section', 'Pricing'),
+        f('materials-cost', 'number', 'Materials Total ($)', { required: true }),
+        f('labor-cost', 'number', 'Labor Total ($)', { required: true }),
+        f('total-price', 'number', 'Total Quoted Price ($)', { required: true }),
+        f('notes', 'multiline', 'Assumptions, Exclusions & Terms', {
+          config: { rows: 3, placeholder: 'e.g. Level 4 finish; lids excluded; GC supplies lift' },
+        }),
+        f('signature', 'signature', 'Your Signature', { required: true }),
+      ),
+      settings: { submitButtonText: 'Generate & Send Quote' },
+    },
+    workflow: {
+      name: 'Measured quote PDF to customer',
+      nodes: [
+        { id: 'n-start', type: 'start', position: { x: 0, y: 0 }, data: {} },
+        { id: 'n-fill', type: 'fill_document', position: { x: 220, y: 0 }, data: {} },
+        {
+          id: 'n-send-customer',
+          type: 'send_document',
+          position: { x: 440, y: 0 },
+          data: {
+            to: '{{customer-email}}',
+            subject: 'Your {{work-type}} quote',
+            body: 'Hi {{customer-name}},\n\nYour measured quote is attached: {{wall-area-sqft}} sq ft of wall at the rates listed, {{total-price}} total. Reply with any questions or to schedule the work.\n\n{{prepared-by}}',
+            filename: 'quote_{{customer-name}}.pdf',
+          },
+        },
+        {
+          id: 'n-send-owner',
+          type: 'send_document',
+          position: { x: 660, y: 0 },
+          data: {
+            to: '',
+            subject: 'Quote sent: {{customer-name}} ({{total-price}})',
+            body: 'Copy of the {{work-type}} quote sent to {{customer-name}} ({{customer-email}}) is attached for your records.',
+            filename: 'quote_{{customer-name}}.pdf',
+          },
+        },
+        { id: 'n-end', type: 'end', position: { x: 880, y: 0 }, data: {} },
+      ],
+      edges: [
+        { id: 'e1', source: 'n-start', target: 'n-fill' },
+        { id: 'e2', source: 'n-fill', target: 'n-send-customer' },
+        { id: 'e3', source: 'n-send-customer', target: 'n-send-owner' },
+        { id: 'e4', source: 'n-send-owner', target: 'n-end' },
       ],
     },
   },

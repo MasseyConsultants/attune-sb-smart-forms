@@ -22,6 +22,7 @@ const TEMPLATE = {
   fieldCount: 8,
   pageCount: 2,
   hasWorkflow: true,
+  hasDocument: false,
   installCount: 12,
   createdAt: '2026-07-13T00:00:00Z',
 };

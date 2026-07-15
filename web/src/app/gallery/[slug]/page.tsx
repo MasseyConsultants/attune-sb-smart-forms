@@ -9,7 +9,7 @@ import { notFound } from 'next/navigation';
 
 import type { LibraryTemplateDetail } from '@attune-sb/shared-types';
 import { LIBRARY_CATEGORY_LABELS } from '@attune-sb/shared-types';
-import { ArrowLeft, CheckCircle2, Workflow } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, FileCheck2, Workflow } from 'lucide-react';
 
 import { BRAND } from '@/lib/brand';
 import { getApiUrl } from '@/lib/get-api-url';
@@ -101,6 +101,12 @@ export default async function GalleryTemplatePage({
               <span className="flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-[var(--brand-primary,#F97316)]">
                 <Workflow className="h-3 w-3" />
                 Includes automation workflow
+              </span>
+            )}
+            {template.hasDocument && (
+              <span className="flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-[var(--brand-primary,#F97316)]">
+                <FileCheck2 className="h-3 w-3" />
+                Ready-made PDF document
               </span>
             )}
           </div>

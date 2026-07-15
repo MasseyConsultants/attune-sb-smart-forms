@@ -9,7 +9,7 @@ import Link from 'next/link';
 
 import type { LibraryTemplateSummary } from '@attune-sb/shared-types';
 import { LIBRARY_CATEGORIES, LIBRARY_CATEGORY_LABELS } from '@attune-sb/shared-types';
-import { FileText, Workflow } from 'lucide-react';
+import { FileCheck2, FileText, Workflow } from 'lucide-react';
 
 import { BRAND } from '@/lib/brand';
 import { getApiUrl } from '@/lib/get-api-url';
@@ -135,6 +135,12 @@ export default async function GalleryPage({
                     <span className="flex items-center gap-1 text-[var(--brand-primary,#F97316)]">
                       <Workflow className="h-3 w-3" />
                       Includes workflow
+                    </span>
+                  )}
+                  {template.hasDocument && (
+                    <span className="flex items-center gap-1 text-[var(--brand-primary,#F97316)]">
+                      <FileCheck2 className="h-3 w-3" />
+                      PDF document
                     </span>
                   )}
                 </div>

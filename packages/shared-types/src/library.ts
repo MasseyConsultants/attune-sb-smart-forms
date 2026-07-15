@@ -45,6 +45,21 @@ export interface LibraryWorkflowGraph {
   edges: WorkflowEdge[];
 }
 
+/**
+ * Code-generated, pre-mapped PDF layouts a template can bundle. Cloning
+ * materializes the blueprint as a READY DocumentTemplate linked to the new
+ * form, so fill_document workflows run with zero setup. Names are stable —
+ * the API's blueprint generator switches over them exhaustively.
+ */
+export const LIBRARY_DOCUMENT_BLUEPRINTS = ['contractor-quote', 'trade-quote'] as const;
+
+export type LibraryDocumentBlueprintName = (typeof LIBRARY_DOCUMENT_BLUEPRINTS)[number];
+
+/** Optional document bundle on a library template. */
+export interface LibraryDocumentRef {
+  blueprint: LibraryDocumentBlueprintName;
+}
+
 export interface LibraryTemplateSummary {
   id: string;
   slug: string;
@@ -55,6 +70,8 @@ export interface LibraryTemplateSummary {
   fieldCount: number;
   pageCount: number;
   hasWorkflow: boolean;
+  /** True when the template bundles a pre-mapped PDF document blueprint. */
+  hasDocument: boolean;
   installCount: number;
   createdAt: string;
 }
@@ -62,6 +79,7 @@ export interface LibraryTemplateSummary {
 export interface LibraryTemplateDetail extends LibraryTemplateSummary {
   schema: FormSchema;
   workflow: LibraryWorkflowGraph | null;
+  document: LibraryDocumentRef | null;
 }
 
 // --- Requests / responses ---
@@ -71,6 +89,11 @@ export interface CloneTemplateResponse {
   formName: string;
   /** Present when the template bundled a workflow. */
   workflowId: string | null;
+  /**
+   * Present when the template bundled a document blueprint and it was
+   * materialized; null when absent or skipped (uploadedTemplates cap).
+   */
+  documentTemplateId: string | null;
 }
 
 export interface PublishOrgTemplateRequest {

@@ -654,6 +654,9 @@ model LibraryTemplate {
   schema      Json
   // { name, nodes, edges } | null — cloned as a DRAFT workflow when present
   workflow    Json?
+  // { blueprint } | null — a code-generated, pre-mapped PDF document template
+  // materialized as a READY DocumentTemplate on clone (quote/invoice layouts).
+  document    Json?
   // Times cloned into an org — gallery social proof + curation signal.
   installCount Int @default(0) @map("install_count")
 

@@ -9,7 +9,17 @@ import { useMemo, useState } from 'react';
 
 import type { LibraryTemplateSummary, PublishOrgTemplateRequest } from '@attune-sb/shared-types';
 import { LIBRARY_CATEGORIES, LIBRARY_CATEGORY_LABELS } from '@attune-sb/shared-types';
-import { Copy, FileText, Layers, Loader2, Search, Trash2, Upload, Workflow } from 'lucide-react';
+import {
+  Copy,
+  FileCheck2,
+  FileText,
+  Layers,
+  Loader2,
+  Search,
+  Trash2,
+  Upload,
+  Workflow,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { UpgradeCta } from '@/components/billing/upgrade-cta';
@@ -210,6 +220,12 @@ function TemplateCard({
           <span className="flex items-center gap-1 text-[var(--brand-primary,#F97316)]">
             <Workflow className="h-3 w-3" />
             Includes workflow
+          </span>
+        )}
+        {template.hasDocument && (
+          <span className="flex items-center gap-1 text-[var(--brand-primary,#F97316)]">
+            <FileCheck2 className="h-3 w-3" />
+            PDF document
           </span>
         )}
       </div>

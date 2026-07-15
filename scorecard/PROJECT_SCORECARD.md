@@ -303,6 +303,22 @@
   green. Live smoke (`scripts/smoke-pdf-library.ps1`): clone → publish form
   - workflow → public submit → run COMPLETED with pdf_generate +
     send_document; generated PDF inspected — labels, sections, [Signed] ✓
+- Document blueprints (2026-07-15): library templates can now bundle a
+  code-generated, pre-mapped professional PDF (`document-blueprints.ts` —
+  the PDF artwork and its FieldCoordinateMappings come from the same layout
+  constants, so coordinates cannot drift). Cloning materializes the
+  blueprint as a READY DocumentTemplate linked to the new form (skipped
+  gracefully at the uploadedTemplates cap). Two new quote templates ship on
+  it: Contractor Job Quote and Framing & Drywall Quote (dimension-driven) —
+  submit the form, the branded quote PDF fills itself and emails the
+  customer + owner with zero setup (37 → 39 templates). Found + fixed: seed
+  workflows that fanned out two unlabeled edges from one node silently
+  dropped the second branch (the walker follows one edge) — service
+  agreement re-chained, seed spec now forbids unlabeled fan-out. 528 API /
+  96 web tests green. Live smoke (`scripts/smoke-quote-blueprints.ps1`,
+  14 checks): clone → document READY w/ 15 mappings linked to the clone →
+  publish → public submit → run COMPLETED, quote PDF filled + emailed to
+  customer and owner; filled PDF rendered and visually verified
 
 ## Quality Gates
 

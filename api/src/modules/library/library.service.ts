@@ -11,6 +11,7 @@ import {
   CloneTemplateResponse,
   FormSchema,
   LIBRARY_CATEGORIES,
+  LibraryDocumentRef,
   LibraryTemplateDetail,
   LibraryTemplateSummary,
   LibraryWorkflowGraph,
@@ -21,14 +22,23 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { LibraryTemplate, LibraryTemplateScope, Prisma } from '@prisma/client';
+import {
+  DocumentTemplateStatus,
+  LibraryTemplate,
+  LibraryTemplateScope,
+  Prisma,
+} from '@prisma/client';
 
+import { generateLibraryDocumentBlueprint } from './document-blueprints';
 import type { ListLibraryQueryDto } from './dto/list-library-query.dto';
 import type { PublishOrgTemplateDto } from './dto/publish-org-template.dto';
 import { LibraryRepository } from './library.repository';
 
 import type { AuthenticatedUser } from '@/modules/auth/strategies/jwt.strategy';
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
+import { BlobStorageService } from '@/modules/common/storage/blob-storage.service';
+import { DocumentTemplatesRepository } from '@/modules/document-templates/document-templates.repository';
+import { EntitlementExceededException } from '@/modules/entitlements/entitlement-exceeded.exception';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
 import { FormsRepository } from '@/modules/forms/forms.repository';
 import { FormsService } from '@/modules/forms/forms.service';
@@ -62,6 +72,7 @@ function toSummary(row: LibraryTemplate): LibraryTemplateSummary {
     fieldCount: (schema.fields ?? []).filter((f) => f.type !== 'pagebreak').length,
     pageCount: pageCountOf(schema),
     hasWorkflow: row.workflow !== null,
+    hasDocument: row.document !== null,
     installCount: row.installCount,
     createdAt: row.createdAt.toISOString(),
   };
@@ -72,6 +83,7 @@ function toDetail(row: LibraryTemplate): LibraryTemplateDetail {
     ...toSummary(row),
     schema: row.schema as unknown as FormSchema,
     workflow: (row.workflow as unknown as LibraryWorkflowGraph) ?? null,
+    document: (row.document as unknown as LibraryDocumentRef) ?? null,
   };
 }
 
@@ -82,6 +94,8 @@ export class LibraryService {
     private readonly formsService: FormsService,
     private readonly formsRepository: FormsRepository,
     private readonly workflowsRepository: WorkflowsRepository,
+    private readonly documentTemplates: DocumentTemplatesRepository,
+    private readonly storage: BlobStorageService,
     private readonly entitlements: EntitlementsService,
     private readonly logger: SecureLoggerService,
   ) {}
@@ -150,13 +164,89 @@ export class LibraryService {
       workflowId = workflow.id;
     }
 
+    // Bundled document blueprint → a READY, pre-mapped DocumentTemplate so
+    // the fill_document workflow runs with zero setup. Skipped (not fatal) at
+    // the uploadedTemplates cap: the form + workflow still clone.
+    let documentTemplateId: string | null = null;
+    const documentRef = template.document as unknown as LibraryDocumentRef | null;
+    if (documentRef?.blueprint) {
+      documentTemplateId = await this.materializeDocumentBlueprint(
+        documentRef,
+        form.id,
+        template.name,
+        user,
+      );
+    }
+
     await this.repository.incrementInstallCount(template.id);
     this.logger.log(
-      `library.cloned template=${template.id} form=${form.id} workflow=${workflowId ?? 'none'} org=${user.organizationId}`,
+      `library.cloned template=${template.id} form=${form.id} workflow=${workflowId ?? 'none'} document=${documentTemplateId ?? 'none'} org=${user.organizationId}`,
       'LibraryService',
     );
 
-    return { formId: form.id, formName: form.name, workflowId };
+    return { formId: form.id, formName: form.name, workflowId, documentTemplateId };
+  }
+
+  private async materializeDocumentBlueprint(
+    documentRef: LibraryDocumentRef,
+    formId: string,
+    templateName: string,
+    user: AuthenticatedUser,
+  ): Promise<string | null> {
+    try {
+      await this.entitlements.assertCountedAvailable(user.organizationId, 'uploadedTemplates');
+    } catch (err) {
+      if (err instanceof EntitlementExceededException) {
+        this.logger.warn(
+          `library.document_skipped_at_cap blueprint=${documentRef.blueprint} org=${user.organizationId}`,
+          'LibraryService',
+        );
+        return null;
+      }
+      throw err;
+    }
+
+    const generated = await generateLibraryDocumentBlueprint(documentRef.blueprint);
+
+    // Same two-phase shape as SmartMapper uploads: row first (PROCESSING) so
+    // a crash mid-pipeline leaves a visible FAILED candidate, then blob, then
+    // READY with geometry + the blueprint's pre-computed mappings.
+    const created = await this.documentTemplates.create({
+      name: `${templateName} (PDF)`,
+      organizationId: user.organizationId,
+      createdById: user.userId,
+      formId,
+      originalKey: '',
+      pdfKey: '',
+      mimeType: 'application/pdf',
+      sizeBytes: generated.pdf.length,
+      status: DocumentTemplateStatus.PROCESSING,
+    });
+
+    try {
+      const key = `document-templates/${user.organizationId}/${created.id}/original.pdf`;
+      await this.storage.upload(key, generated.pdf, 'application/pdf');
+      await this.documentTemplates.update(created.id, {
+        status: DocumentTemplateStatus.READY,
+        originalKey: key,
+        pdfKey: key,
+        pageCount: generated.pageCount,
+        pageDimensions: generated.pageDimensions as unknown as Prisma.InputJsonValue,
+        fieldMappings: generated.mappings as unknown as Prisma.InputJsonValue,
+      });
+      return created.id;
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'Blueprint materialization failed';
+      await this.documentTemplates.update(created.id, {
+        status: DocumentTemplateStatus.FAILED,
+        failureReason: reason.slice(0, 500),
+      });
+      this.logger.warn(
+        `library.document_failed blueprint=${documentRef.blueprint} id=${created.id} reason=${reason}`,
+        'LibraryService',
+      );
+      return null;
+    }
   }
 
   // --- Publish own form as an ORG template (Growth+ feature) ---

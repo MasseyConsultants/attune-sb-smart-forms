@@ -221,6 +221,9 @@ async function seedLibraryTemplates(): Promise<void> {
       workflow: template.workflow
         ? (template.workflow as unknown as Prisma.InputJsonValue)
         : Prisma.JsonNull,
+      document: template.document
+        ? (template.document as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
       deletedAt: null,
     };
     await prisma.libraryTemplate.upsert({
