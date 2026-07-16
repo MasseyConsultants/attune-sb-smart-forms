@@ -36,6 +36,17 @@ export class AppCacheService implements OnModuleInit, OnModuleDestroy {
     await this.client.quit().catch(() => this.client.disconnect());
   }
 
+  /** Round-trip latency in ms, or null when Redis is unreachable (ops probe). */
+  async ping(): Promise<number | null> {
+    try {
+      const start = Date.now();
+      await this.client.ping();
+      return Date.now() - start;
+    } catch {
+      return null;
+    }
+  }
+
   async get<T>(key: string): Promise<T | null> {
     try {
       const raw = await this.client.get(`${KEY_PREFIX}${key}`);

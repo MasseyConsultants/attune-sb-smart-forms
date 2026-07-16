@@ -3,8 +3,9 @@
 //   1. HttpExceptionFilter — maps NestJS HttpExceptions to the standard envelope.
 //   2. AllExceptionsFilter — catch-all that sanitizes unexpected errors to 500
 //      without leaking stack traces or internal details (OWASP A09).
-// Security-event recording is deferred to the observability pass (P6) — the
-// enterprise SecurityEventsService is not ported at Sprint 0.
+// Ops-event recording (SB-025, the deferred P6 observability pass): 5xx faults
+// land in the OpsEvent ledger as API_ERROR; 403s are recorded as SECURITY
+// authz denials. Recording is fire-and-forget inside OpsEventsService.
 
 import {
   ArgumentsHost,
@@ -14,7 +15,10 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { OpsEventKind, OpsEventSeverity } from '@prisma/client';
 import { Request, Response } from 'express';
+
+import { OpsEventsService } from '@/modules/ops/ops-events.service';
 
 interface NestValidationBody {
   readonly message: string | string[];
@@ -33,9 +37,26 @@ interface ErrorEnvelope {
   };
 }
 
+interface RequestActor {
+  readonly userId?: string;
+  readonly organizationId?: string;
+}
+
+function requestActor(request: Request): RequestActor {
+  const user = (request as Request & { user?: { userId?: string; organizationId?: string } }).user;
+  return { userId: user?.userId, organizationId: user?.organizationId };
+}
+
+function requestId(request: Request): string | undefined {
+  const header = request.headers?.['x-request-id'];
+  return typeof header === 'string' ? header : undefined;
+}
+
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
+
+  constructor(private readonly opsEvents: OpsEventsService) {}
 
   catch(exception: HttpException, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -53,8 +74,42 @@ export class HttpExceptionFilter implements ExceptionFilter {
         exception.stack,
       );
     }
+    this.recordOpsEvent(status, envelope.error.code, envelope.error.message, request);
 
     response.status(status).json(envelope);
+  }
+
+  private recordOpsEvent(status: number, code: string, message: string, request: Request): void {
+    const base = {
+      statusCode: status,
+      method: request.method,
+      path: request.path,
+      requestId: requestId(request),
+      ip: request.ip,
+      ...requestActor(request),
+      context: { code },
+    };
+
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.opsEvents.record({
+        kind: OpsEventKind.API_ERROR,
+        severity: OpsEventSeverity.ERROR,
+        type: 'http.5xx',
+        message,
+        ...base,
+      });
+    } else if (status === HttpStatus.FORBIDDEN) {
+      // Role/tenant denials are a security signal (cross-org probing, privilege
+      // escalation attempts). 401s are deliberately NOT recorded — expired
+      // tokens are routine noise.
+      this.opsEvents.record({
+        kind: OpsEventKind.SECURITY,
+        severity: OpsEventSeverity.WARNING,
+        type: 'authz.denied',
+        message,
+        ...base,
+      });
+    }
   }
 
   private buildEnvelope(body: string | object, exception: HttpException): ErrorEnvelope {
@@ -111,9 +166,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
+  constructor(private readonly opsEvents: OpsEventsService) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
 
     // Let HttpExceptionFilter handle proper HTTP exceptions
     if (exception instanceof HttpException) {
@@ -125,6 +183,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       `Unhandled exception: ${message}`,
       exception instanceof Error ? exception.stack : undefined,
     );
+
+    // CRITICAL: an unhandled (non-HttpException) fault is a code defect, not a
+    // mapped domain error — these are the first thing an admin should triage.
+    this.opsEvents.record({
+      kind: OpsEventKind.API_ERROR,
+      severity: OpsEventSeverity.CRITICAL,
+      type: 'http.unhandled',
+      message,
+      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      method: request.method,
+      path: request.path,
+      requestId: requestId(request),
+      ip: request.ip,
+      ...requestActor(request),
+    });
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       success: false,

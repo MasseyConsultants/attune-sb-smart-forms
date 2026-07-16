@@ -66,6 +66,11 @@ export const envValidationSchema = Joi.object({
   SMTP_USER: Joi.string().optional().allow(''),
   SMTP_PASS: Joi.string().optional().allow(''),
 
+  // --- Platform ops (SB-025) ---
+  // Shared secret for the Prometheus scrape endpoint; when unset, /metrics 404s.
+  METRICS_TOKEN: Joi.string().min(32).optional().allow(''),
+  OPS_EVENT_RETENTION_DAYS: Joi.number().integer().min(1).max(365).default(30),
+
   // --- BFF trust boundary ---
   // Required in production so API routes cannot be hit without the web BFF key.
   INTERNAL_API_KEY: Joi.when('NODE_ENV', {

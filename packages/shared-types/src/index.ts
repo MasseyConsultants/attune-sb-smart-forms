@@ -10,6 +10,7 @@ export * from './document-templates';
 export * from './library';
 export * from './notifications';
 export * from './admin';
+export * from './admin-ops';
 export * from './workflows';
 export * from './auth';
 export * from './team';

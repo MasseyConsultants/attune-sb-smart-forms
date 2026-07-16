@@ -36,11 +36,15 @@ function makeHost(captured: CapturedResponse): ArgumentsHost {
   } as unknown as ArgumentsHost;
 }
 
+const opsEvents = { record: jest.fn(), security: jest.fn() };
+
 describe('HttpExceptionFilter', () => {
   let filter: HttpExceptionFilter;
 
   beforeEach(() => {
-    filter = new HttpExceptionFilter();
+    jest.clearAllMocks();
+    // Reason: structural mock stands in for the Nest provider in unit tests.
+    filter = new HttpExceptionFilter(opsEvents as any);
   });
 
   it('maps a string error label to a SCREAMING_SNAKE code', () => {

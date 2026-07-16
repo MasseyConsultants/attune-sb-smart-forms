@@ -44,6 +44,7 @@ const lifecycle = { restoreIfReadOnly: jest.fn().mockResolvedValue(false) };
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 const emailService = { send: jest.fn().mockResolvedValue(undefined) };
 const config = { get: jest.fn((_key: string, defaultValue?: unknown) => defaultValue) };
+const opsEvents = { record: jest.fn(), security: jest.fn() };
 
 const LOCAL_SUB = {
   id: 'local-sub-1',
@@ -64,6 +65,7 @@ function makeService(): StripeWebhookService {
     logger as any,
     emailService as any,
     config as any,
+    opsEvents as any,
   );
 }
 

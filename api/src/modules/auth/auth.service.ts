@@ -23,6 +23,7 @@ import * as bcrypt from 'bcryptjs';
 import { SecureLoggerService } from '../common/logger/secure-logger.service';
 import { brandEmailShell, brandEmailButton, escapeHtml } from '../notifications/email-brand-shell';
 import { EmailService } from '../notifications/email.service';
+import { OpsEventsService } from '../ops/ops-events.service';
 
 import { AuthRepository } from './auth.repository';
 import { LoginDto } from './dto/login.dto';
@@ -95,6 +96,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly logger: SecureLoggerService,
     private readonly emailService: EmailService,
+    private readonly opsEvents: OpsEventsService,
   ) {
     // ConfigService returns env vars as strings — parseInt so JwtService doesn't
     // interpret string "900" as 900 milliseconds via the ms() lib.
@@ -240,6 +242,11 @@ export class AuthService {
       // All tokens in this family are revoked — probable token reuse/theft.
       await this.authRepository.revokeTokenFamily(payload.family);
       this.logger.warn(`Refresh token reuse detected for family: ${payload.family}`, 'AuthService');
+      this.opsEvents.security('auth.refresh_reuse', 'Refresh token reuse — family revoked', {
+        severity: 'CRITICAL',
+        userId: payload.sub,
+        context: { family: payload.family },
+      });
       throw new UnauthorizedException('Refresh token already used — please log in again');
     }
 
@@ -511,11 +518,21 @@ export class AuthService {
 
   private async handleFailedAttempt(userId: string): Promise<void> {
     const updated = await this.authRepository.incrementFailedAttempts(userId);
+    this.opsEvents.security('auth.login_failed', 'Failed login attempt', {
+      severity: 'INFO',
+      userId,
+      context: { failedAttempts: updated.failedAttempts },
+    });
 
     if (updated.failedAttempts >= MAX_FAILED_ATTEMPTS) {
       const lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
       await this.authRepository.lockAccount(userId, lockedUntil);
       this.logger.warn(`Account locked due to failed attempts: ${userId}`, 'AuthService');
+      this.opsEvents.security(
+        'auth.account_locked',
+        `Account locked after ${updated.failedAttempts} failed attempts`,
+        { userId, context: { lockedUntil: lockedUntil.toISOString() } },
+      );
     }
   }
 

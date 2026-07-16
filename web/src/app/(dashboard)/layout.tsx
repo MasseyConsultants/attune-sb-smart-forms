@@ -15,6 +15,7 @@ import {
   Users,
   LibraryBig,
   ShieldCheck,
+  Activity,
 } from 'lucide-react';
 import type { OrganizationProfile, UserProfile } from '@attune-sb/shared-types';
 
@@ -68,7 +69,10 @@ const NAV_SECTIONS: ReadonlyArray<NavSection> = [
 
 const ADMIN_SECTION: NavSection = {
   label: 'Platform',
-  items: [{ label: 'Admin', href: '/admin', icon: <ShieldCheck className="h-4 w-4" /> }],
+  items: [
+    { label: 'Admin', href: '/admin', icon: <ShieldCheck className="h-4 w-4" /> },
+    { label: 'Ops', href: '/admin/ops', icon: <Activity className="h-4 w-4" /> },
+  ],
 };
 
 export default async function DashboardLayout({

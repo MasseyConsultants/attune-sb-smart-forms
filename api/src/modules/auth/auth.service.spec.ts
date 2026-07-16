@@ -49,6 +49,7 @@ const configService = {
 
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
 const emailService = { send: jest.fn().mockResolvedValue(undefined) };
+const opsEvents = { record: jest.fn(), security: jest.fn() };
 
 function makeService(): AuthService {
   // Reason: structural mocks stand in for Nest providers in unit tests.
@@ -58,6 +59,7 @@ function makeService(): AuthService {
     configService as any,
     logger as any,
     emailService as any,
+    opsEvents as any,
   );
 }
 

@@ -321,16 +321,45 @@
 
 ## Sprint 10 Task Status
 
-| #   | Task                          | Status      | Notes                                                                       |
-| --- | ----------------------------- | ----------- | --------------------------------------------------------------------------- |
-| 0   | VPS reclaim + clean           | ✅ Done     | 2026-07-15 — enterprise stack + Budibase + MariaDB wiped; 4 GB swap added   |
-| 1   | Production images (docker/)   | ✅ Done     | api (Chromium/tini/prisma/compiled seed) + web (standalone, relative URL)   |
-| 2   | Production seed safety        | ✅ Done     | Demo orgs dev-only; prod admin requires PLATFORM_ADMIN_PASSWORD env         |
-| 3   | trust proxy (real client IPs) | ✅ Done     | main.ts — @Ip()/throttles read X-Forwarded-For behind nginx                 |
-| 4   | Compose + nginx + env + setup | ✅ Done     | docker-compose.prod.yml, attune-sb.conf.template, vps-setup.sh              |
-| 5   | Deploy pipeline (GHCR + SSH)  | ✅ Done     | deploy.yml — AUTO on green CI (owner decision; re-gate before customers)    |
-| 6   | Docs                          | ✅ Done     | docs/DEPLOYMENT.md (VPS + Azure pathways), ADR-0005                         |
-| 7   | Remaining hardening           | Not started | Backups/restore drill, Stripe live, Resend domain, uptime, semantic-release |
+| #   | Task                          | Status      | Notes                                                                        |
+| --- | ----------------------------- | ----------- | ---------------------------------------------------------------------------- |
+| 0   | VPS reclaim + clean           | ✅ Done     | 2026-07-15 — enterprise stack + Budibase + MariaDB wiped; 4 GB swap added    |
+| 1   | Production images (docker/)   | ✅ Done     | api (Chromium/tini/prisma/compiled seed) + web (standalone, relative URL)    |
+| 2   | Production seed safety        | ✅ Done     | Demo orgs dev-only; prod admin requires PLATFORM_ADMIN_PASSWORD env          |
+| 3   | trust proxy (real client IPs) | ✅ Done     | main.ts — @Ip()/throttles read X-Forwarded-For behind nginx                  |
+| 4   | Compose + nginx + env + setup | ✅ Done     | docker-compose.prod.yml, attune-sb.conf.template, vps-setup.sh               |
+| 5   | Deploy pipeline (GHCR + SSH)  | ✅ Done     | deploy.yml — AUTO on green CI (owner decision; re-gate before customers)     |
+| 6   | Docs                          | ✅ Done     | docs/DEPLOYMENT.md (VPS + Azure pathways), ADR-0005                          |
+| 7   | Remaining hardening           | Not started | Backups/restore drill, Stripe live, Resend domain, uptime, semantic-release  |
+| 8   | Platform Ops console (SB-025) | ✅ Done     | 2026-07-16 — fast-tracked P1: ops event ledger, RED metrics, queue inspector |
+
+## Sprint 10 Verification (2026-07-16 — Platform Ops console, SB-025)
+
+- New `/admin/ops` console (Platform nav, PLATFORM_ADMIN only) with five tabs:
+  Overview (DB/Redis health + latency, uptime/memory, 60-min traffic chart
+  with p50/p95/p99, queue depths, 24h error/security counts, business stats,
+  recent workflow failures), Errors & Security (filterable `OpsEvent` ledger
+  with expandable rows), Queues (BullMQ counts + failed-job retry/discard),
+  Webhooks (Stripe idempotency ledger browser), Usage Hotspots (orgs ≥70% of
+  any plan meter — the MASTER_PLAN expansion-pipeline view)
+- Closed the deferred P6 note in `http-exception.filter.ts`: 5xx →
+  `API_ERROR` events, 403 → `authz.denied` SECURITY events; unhandled
+  exceptions → CRITICAL. Auth wired: `auth.login_failed`,
+  `auth.account_locked`, `auth.refresh_reuse` (CRITICAL); Stripe:
+  `webhook.signature_failed` (CRITICAL). Recording is fire-and-forget — a
+  broken ledger can never break the request path
+- New `OpsEvent` model + migration `20260716155119_ops_events` (no-FK org/user
+  refs survive purges); daily `ops-maintenance` BullMQ sweep prunes past
+  `OPS_EVENT_RETENTION_DAYS` (default 30)
+- prom-client (ADR-0006): default Node metrics + HTTP histogram with
+  cardinality-bounded route labels; Prometheus scrape at `GET /api/v1/metrics`
+  guarded by `METRICS_TOKEN` (404 when unset); in-memory 60-min RED window
+  powers the console without a Prometheus deployment
+- API: `admin/ops/*` endpoints (overview, events, queues, retry/discard,
+  webhooks, usage-hotspots) behind Roles(PLATFORM_ADMIN) + AllowReadOnly;
+  web: catch-all allow-listed BFF proxy + `use-admin-ops` hooks
+- 633 API tests / 34 suites green (incl. 3 new ops suites + updated
+  auth/webhook/filter specs); lint + typecheck clean API and web
 
 ## Sprint 10 Verification (2026-07-15 — FIRST PRODUCTION DEPLOY LIVE)
 

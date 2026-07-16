@@ -102,6 +102,18 @@ enum WorkflowRunStepStatus {
   SKIPPED
 }
 
+enum OpsEventKind {
+  API_ERROR
+  SECURITY
+}
+
+enum OpsEventSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
 enum LibraryTemplateScope {
   // Curated gallery — browsable without auth (SEO/acquisition surface).
   PUBLIC
@@ -697,6 +709,45 @@ model Notification {
   @@index([organizationId, createdAt])
   @@index([organizationId, readAt])
   @@map("notifications")
+}
+
+// --- Platform ops (SB-025) ---
+
+// Structured event ledger for the Platform Ops console: API 5xx faults and
+// security-relevant events (login failures, lockouts, refresh reuse, webhook
+// signature failures, authz denials). organizationId/userId are references
+// only (no FK) so events survive org purges — same rationale as PurgeAuditLog.
+// Pruned by the daily ops-maintenance sweep after OPS_EVENT_RETENTION_DAYS.
+model OpsEvent {
+  id       String           @id @default(uuid())
+  kind     OpsEventKind
+  severity OpsEventSeverity
+  // Machine-readable event name, e.g. 'http.5xx' | 'auth.login_failed' |
+  // 'auth.account_locked' | 'auth.refresh_reuse' | 'webhook.signature_failed'
+  type     String
+  message  String
+
+  statusCode Int?    @map("status_code")
+  method     String?
+  path       String?
+  requestId  String? @map("request_id")
+
+  organizationId String? @map("organization_id")
+  userId         String? @map("user_id")
+  // Source IP for abuse forensics — PII-adjacent, so it rides the same
+  // retention window as everything else in this table.
+  ip             String?
+
+  context Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([kind, createdAt])
+  @@index([type])
+  @@index([severity, createdAt])
+  @@index([organizationId])
+  @@index([createdAt])
+  @@map("ops_events")
 }
 
 // Trial-abuse fingerprint — purged trial orgs cannot re-trial for free.

@@ -37,6 +37,7 @@ import { LibraryModule } from './modules/library/library.module';
 import { LifecycleModule } from './modules/lifecycle/lifecycle.module';
 import { ReadOnlyGuard } from './modules/lifecycle/read-only.guard';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { OpsModule } from './modules/ops/ops.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { SubmissionsModule } from './modules/submissions/submissions.module';
 import { UsersModule } from './modules/users/users.module';
@@ -93,6 +94,9 @@ import { WorkflowsModule } from './modules/workflows/workflows.module';
     EncryptionModule,
     NotificationsModule,
     StorageModule,
+    // Platform observability (SB-025): metrics registry + ops event ledger.
+    // Global so the exception filters and auth/webhook services can record.
+    OpsModule,
 
     // --- Domain modules ---
     HealthModule,

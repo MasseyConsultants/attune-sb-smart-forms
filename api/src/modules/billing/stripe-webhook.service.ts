@@ -23,6 +23,7 @@ import {
   escapeHtml,
 } from '@/modules/notifications/email-brand-shell';
 import { EmailService } from '@/modules/notifications/email.service';
+import { OpsEventsService } from '@/modules/ops/ops-events.service';
 
 const CONTEXT = 'StripeWebhookService';
 
@@ -36,6 +37,7 @@ export class StripeWebhookService {
     private readonly logger: SecureLoggerService,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly opsEvents: OpsEventsService,
   ) {}
 
   verifyAndParse(rawBody: Buffer, signature: string): Stripe.Event {
@@ -44,6 +46,13 @@ export class StripeWebhookService {
         .getClient()
         .webhooks.constructEvent(rawBody, signature, this.stripe.webhookSecret);
     } catch (err) {
+      // A bad signature on a public endpoint is either a misconfigured secret
+      // or someone probing the webhook — both belong in the security ledger.
+      this.opsEvents.security(
+        'webhook.signature_failed',
+        `Stripe webhook signature verification failed: ${err instanceof Error ? err.message : 'unknown'}`,
+        { severity: 'CRITICAL', path: '/api/v1/webhooks/stripe' },
+      );
       throw new BadRequestException(
         `Webhook signature verification failed: ${err instanceof Error ? err.message : 'unknown'}`,
       );
