@@ -6,7 +6,7 @@
 // In production the platform admin is created only when PLATFORM_ADMIN_PASSWORD
 // is provided via env; dev falls back to the printed defaults below.
 
-import { LIBRARY_CATEGORIES } from '@attune-sb/shared-types';
+import { LIBRARY_CATEGORIES, type PlanFeatures, type PlanLimits } from '@attune-sb/shared-types';
 import {
   LibraryTemplateScope,
   Prisma,
@@ -89,10 +89,76 @@ async function seedPlans(): Promise<void> {
   console.warn(`Seeded ${plans.length} plans`);
 }
 
+// The platform org has no Subscription row, so EntitlementsService resolves it
+// to trial limits (the most restrictive tier). These overrides implement the
+// "never metered" promise: every numeric cap effectively unlimited, every
+// feature gate open. Idempotent — re-runs refresh the values in place.
+const PLATFORM_UNLIMITED = Number.MAX_SAFE_INTEGER;
+const PLATFORM_ORG_OVERRIDES: Readonly<Record<keyof PlanLimits, number>> = {
+  usersIncluded: PLATFORM_UNLIMITED,
+  maxUsers: PLATFORM_UNLIMITED,
+  activeForms: PLATFORM_UNLIMITED,
+  submissionsPerMonth: PLATFORM_UNLIMITED,
+  docFillsPerMonth: PLATFORM_UNLIMITED,
+  uploadedTemplates: PLATFORM_UNLIMITED,
+  workflowRunsPerMonth: PLATFORM_UNLIMITED,
+  emailsPerMonth: PLATFORM_UNLIMITED,
+  aiCreditsPerMonth: PLATFORM_UNLIMITED,
+  storageBytes: PLATFORM_UNLIMITED,
+  maxUploadBytes: PLATFORM_UNLIMITED,
+  apiRateLimitPerMin: PLATFORM_UNLIMITED,
+  dataRetentionDays: PLATFORM_UNLIMITED,
+  postExitRetentionDays: PLATFORM_UNLIMITED,
+};
+const PLATFORM_ORG_FEATURES: Readonly<PlanFeatures> = {
+  apiAccess: 'full',
+  removeBranding: true,
+  publishOrgTemplates: true,
+  privateOrgLibrary: true,
+  workflowNodeTier: 'business',
+};
+
+async function seedPlatformOverrides(organizationId: string): Promise<void> {
+  const entries: Array<[string, number | boolean | string]> = [
+    ...Object.entries(PLATFORM_ORG_OVERRIDES),
+    ...Object.entries(PLATFORM_ORG_FEATURES),
+  ];
+  for (const [entitlement, value] of entries) {
+    const existing = await prisma.entitlementOverride.findFirst({
+      where: { organizationId, entitlement },
+    });
+    if (existing) {
+      await prisma.entitlementOverride.update({
+        where: { id: existing.id },
+        data: { value, expiresAt: null },
+      });
+    } else {
+      await prisma.entitlementOverride.create({
+        data: {
+          organizationId,
+          entitlement,
+          value,
+          expiresAt: null,
+          reason: 'Platform staff org — internal, never metered (seed)',
+        },
+      });
+    }
+  }
+  console.warn(`Seeded ${entries.length} platform org entitlement overrides`);
+}
+
 async function seedPlatformAdmin(): Promise<void> {
   // In production, refuse to create the admin from the hardcoded dev fallback:
-  // an explicit PLATFORM_ADMIN_PASSWORD env var is required, otherwise skip.
+  // an explicit PLATFORM_ADMIN_PASSWORD env var is required. The org's
+  // entitlement overrides still refresh if the org already exists (the env var
+  // is removed from the server after the first seed by design).
   if (IS_PRODUCTION && !process.env.PLATFORM_ADMIN_PASSWORD) {
+    const existingOrg = await prisma.organization.findUnique({
+      where: { slug: 'attune-platform' },
+    });
+    if (existingOrg) {
+      await seedPlatformOverrides(existingOrg.id);
+    }
     console.warn('Skipped platform admin (set PLATFORM_ADMIN_PASSWORD to seed it in production)');
     return;
   }
@@ -107,6 +173,8 @@ async function seedPlatformAdmin(): Promise<void> {
     },
     update: {},
   });
+
+  await seedPlatformOverrides(platformOrg.id);
 
   const passwordHash = await bcrypt.hash(PLATFORM_ADMIN_PASSWORD, 12);
   await prisma.user.upsert({
