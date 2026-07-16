@@ -282,6 +282,240 @@ function drawTradeQuote(d: Draw): void {
   footer(d, 'Framing & Drywall Quote');
 }
 
+function drawChangeOrder(d: Draw): void {
+  header(d, 'CHANGE ORDER', 'Scope change authorization');
+
+  field(d, 'co-number', 'Change order #', MARGIN, 112, 170, 38);
+  field(d, 'co-date', 'Date', 222, 112, 170, 38);
+  field(d, 'job-number', 'Job / project #', 404, 112, 168, 38);
+
+  sectionHeader(d, 'Customer & job', 168);
+  field(d, 'customer-name', 'Customer', MARGIN, 182, 260, 38);
+  field(d, 'customer-email', 'Email', 312, 182, 260, 38);
+  field(d, 'job-address', 'Job address', MARGIN, 228, CONTENT_W, 38);
+
+  sectionHeader(d, 'Change description', 284);
+  field(d, 'original-scope', 'Original scope (summary)', MARGIN, 298, CONTENT_W, 64, {
+    fontSize: 9,
+  });
+  field(d, 'change-description', 'Requested change', MARGIN, 370, CONTENT_W, 80, {
+    fontSize: 9,
+  });
+
+  sectionHeader(d, 'Cost impact', 468);
+  field(d, 'cost-impact', 'Cost impact ($ +/-)', MARGIN, 482, 260, 38);
+  field(d, 'schedule-impact', 'Schedule impact', 312, 482, 260, 38);
+  totalBand(d, 'new-contract-total', 530, 'REVISED CONTRACT TOTAL');
+
+  sectionHeader(d, 'Authorization', 594);
+  field(d, 'notes', 'Notes', MARGIN, 608, CONTENT_W, 52, { fontSize: 9 });
+  field(d, 'signature', 'Customer authorization', MARGIN, 670, 300, 50);
+  text(d, 'Signing authorizes the change and cost above', 360, 700, 8, { color: MUTED });
+
+  footer(d, 'Change Order');
+}
+
+function drawPunchList(d: Draw): void {
+  header(d, 'PUNCH LIST', 'Walkthrough & closeout items');
+
+  field(d, 'walkthrough-date', 'Walkthrough date', MARGIN, 112, 170, 38);
+  field(d, 'job-number', 'Job #', 222, 112, 170, 38);
+  field(d, 'prepared-by', 'Prepared by', 404, 112, 168, 38);
+
+  sectionHeader(d, 'Project', 168);
+  field(d, 'customer-name', 'Customer', MARGIN, 182, 260, 38);
+  field(d, 'customer-email', 'Email', 312, 182, 260, 38);
+  field(d, 'job-address', 'Job address', MARGIN, 228, CONTENT_W, 38);
+
+  sectionHeader(d, 'Open items', 284);
+  field(d, 'items', 'Punch items (room / description / owner)', MARGIN, 298, CONTENT_W, 160, {
+    fontSize: 9,
+  });
+  field(d, 'target-complete', 'Target completion date', MARGIN, 468, 260, 38);
+  field(d, 'priority', 'Overall priority', 312, 468, 260, 38);
+
+  sectionHeader(d, 'Sign-off', 524);
+  field(d, 'notes', 'Notes', MARGIN, 538, CONTENT_W, 64, { fontSize: 9 });
+  field(d, 'signature', 'Customer walkthrough sign-off', MARGIN, 612, 300, 50);
+  field(d, 'gc-signature', 'GC / PM signature', 360, 612, 212, 50);
+
+  footer(d, 'Punch List Walkthrough');
+}
+
+function drawAutoRepairEstimate(d: Draw): void {
+  header(d, 'REPAIR ESTIMATE', 'Automotive service quote');
+
+  field(d, 'quote-date', 'Date', MARGIN, 112, 170, 38);
+  field(d, 'ro-number', 'RO / estimate #', 222, 112, 170, 38);
+  field(d, 'prepared-by', 'Advisor', 404, 112, 168, 38);
+
+  sectionHeader(d, 'Customer', 168);
+  field(d, 'customer-name', 'Name', MARGIN, 182, 260, 38);
+  field(d, 'customer-email', 'Email', 312, 182, 260, 38);
+  field(d, 'customer-phone', 'Phone', MARGIN, 228, CONTENT_W, 38);
+
+  sectionHeader(d, 'Vehicle', 284);
+  field(d, 'vehicle-year', 'Year', MARGIN, 298, 100, 38);
+  field(d, 'vehicle-make', 'Make', 152, 298, 140, 38);
+  field(d, 'vehicle-model', 'Model', 304, 298, 140, 38);
+  field(d, 'vehicle-vin', 'VIN / plate', 456, 298, 116, 38);
+  field(d, 'odometer', 'Odometer', MARGIN, 344, 170, 38);
+  field(d, 'concern', 'Customer concern', 222, 344, 350, 38);
+
+  sectionHeader(d, 'Recommended work', 400);
+  field(d, 'work-description', 'Labor & parts description', MARGIN, 414, CONTENT_W, 88, {
+    fontSize: 9,
+  });
+
+  sectionHeader(d, 'Pricing', 520);
+  field(d, 'parts-cost', 'Parts ($)', MARGIN, 534, 170, 38);
+  field(d, 'labor-cost', 'Labor ($)', 222, 534, 170, 38);
+  field(d, 'other-cost', 'Shop / other ($)', 404, 534, 168, 38);
+  totalBand(d, 'total-price', 582, 'ESTIMATED TOTAL');
+
+  sectionHeader(d, 'Authorization', 646);
+  field(d, 'notes', 'Notes / exclusions', MARGIN, 660, CONTENT_W, 40, { fontSize: 9 });
+  field(d, 'signature', 'Customer authorization', MARGIN, 710, 300, 44);
+
+  footer(d, 'Auto Repair Estimate');
+}
+
+function drawBookingContract(d: Draw): void {
+  header(d, 'BOOKING AGREEMENT', 'Services contract & deposit');
+
+  field(d, 'contract-date', 'Date', MARGIN, 112, 170, 38);
+  field(d, 'event-date', 'Service / event date', 222, 112, 350, 38);
+
+  sectionHeader(d, 'Parties', 168);
+  field(d, 'provider-name', 'Service provider', MARGIN, 182, 260, 38);
+  field(d, 'customer-name', 'Client name', 312, 182, 260, 38);
+  field(d, 'customer-email', 'Client email', MARGIN, 228, 260, 38);
+  field(d, 'customer-phone', 'Client phone', 312, 228, 260, 38);
+
+  sectionHeader(d, 'Engagement', 284);
+  field(d, 'service-title', 'Service / package', MARGIN, 298, CONTENT_W, 38);
+  field(d, 'venue', 'Venue / location', MARGIN, 344, CONTENT_W, 38);
+  field(d, 'scope', 'Scope of services', MARGIN, 390, CONTENT_W, 80, { fontSize: 9 });
+
+  sectionHeader(d, 'Fees', 488);
+  field(d, 'total-fee', 'Total fee ($)', MARGIN, 502, 170, 38);
+  field(d, 'deposit', 'Deposit due ($)', 222, 502, 170, 38);
+  field(d, 'balance-due', 'Balance due ($)', 404, 502, 168, 38);
+  field(d, 'payment-terms', 'Payment terms', MARGIN, 548, CONTENT_W, 38);
+
+  sectionHeader(d, 'Terms & signatures', 604);
+  field(d, 'terms', 'Key terms (cancellation, rights, liability)', MARGIN, 618, CONTENT_W, 52, {
+    fontSize: 9,
+  });
+  field(d, 'signature', 'Client signature', MARGIN, 680, 250, 50);
+  field(d, 'provider-signature', 'Provider signature', 312, 680, 260, 50);
+
+  footer(d, 'Booking Agreement');
+}
+
+function drawPermissionSlip(d: Draw): void {
+  header(d, 'PERMISSION SLIP', 'Parent / guardian authorization');
+
+  field(d, 'event-name', 'Event / trip name', MARGIN, 112, CONTENT_W, 38);
+  field(d, 'event-date', 'Date', MARGIN, 158, 260, 38);
+  field(d, 'return-time', 'Return time', 312, 158, 260, 38);
+
+  sectionHeader(d, 'Student', 214);
+  field(d, 'student-name', 'Student name', MARGIN, 228, 260, 38);
+  field(d, 'grade', 'Grade / group', 312, 228, 260, 38);
+
+  sectionHeader(d, 'Parent / guardian', 284);
+  field(d, 'guardian-name', 'Guardian name', MARGIN, 298, 260, 38);
+  field(d, 'customer-email', 'Email', 312, 298, 260, 38);
+  field(d, 'guardian-phone', 'Phone', MARGIN, 344, CONTENT_W, 38);
+
+  sectionHeader(d, 'Emergency & medical', 400);
+  field(d, 'emergency-contact', 'Emergency contact', MARGIN, 414, CONTENT_W, 38);
+  field(d, 'medical-notes', 'Allergies / medical notes', MARGIN, 460, CONTENT_W, 64, {
+    fontSize: 9,
+  });
+
+  sectionHeader(d, 'Consent', 542);
+  field(d, 'activity-details', 'Activity details', MARGIN, 556, CONTENT_W, 52, { fontSize: 9 });
+  text(
+    d,
+    'By signing, I authorize transportation and participation in this activity.',
+    MARGIN,
+    620,
+    9,
+    {
+      color: MUTED,
+    },
+  );
+  field(d, 'signature', 'Guardian signature', MARGIN, 640, 300, 50);
+  field(d, 'signed-date', 'Date signed', 360, 640, 212, 50);
+
+  footer(d, 'Field Trip Permission Slip');
+}
+
+function drawBakeryOrder(d: Draw): void {
+  header(d, 'CUSTOM ORDER', 'Bakery / cake order confirmation');
+
+  field(d, 'order-date', 'Order date', MARGIN, 112, 170, 38);
+  field(d, 'pickup-date', 'Pickup / delivery date', 222, 112, 350, 38);
+
+  sectionHeader(d, 'Customer', 168);
+  field(d, 'customer-name', 'Name', MARGIN, 182, 260, 38);
+  field(d, 'customer-email', 'Email', 312, 182, 260, 38);
+  field(d, 'customer-phone', 'Phone', MARGIN, 228, CONTENT_W, 38);
+
+  sectionHeader(d, 'Order details', 284);
+  field(d, 'item-type', 'Item type', MARGIN, 298, 260, 38);
+  field(d, 'servings', 'Servings / size', 312, 298, 260, 38);
+  field(d, 'flavor', 'Flavor', MARGIN, 344, 260, 38);
+  field(d, 'frosting', 'Frosting / finish', 312, 344, 260, 38);
+  field(d, 'inscription', 'Inscription / message', MARGIN, 390, CONTENT_W, 38);
+  field(d, 'design-notes', 'Design notes', MARGIN, 436, CONTENT_W, 72, { fontSize: 9 });
+
+  sectionHeader(d, 'Pricing & fulfillment', 526);
+  field(d, 'total-price', 'Total ($)', MARGIN, 540, 170, 38);
+  field(d, 'deposit', 'Deposit ($)', 222, 540, 170, 38);
+  field(d, 'fulfillment', 'Pickup or delivery', 404, 540, 168, 38);
+  field(d, 'notes', 'Allergies / special requests', MARGIN, 586, CONTENT_W, 52, {
+    fontSize: 9,
+  });
+  field(d, 'signature', 'Customer confirmation', MARGIN, 650, 300, 50);
+
+  footer(d, 'Custom Bakery Order');
+}
+
+function drawDirectDepositAuth(d: Draw): void {
+  header(d, 'DIRECT DEPOSIT', 'Payroll authorization');
+
+  field(d, 'employee-name', 'Employee name', MARGIN, 112, 260, 38);
+  field(d, 'employee-email', 'Work email', 312, 112, 260, 38);
+  field(d, 'effective-date', 'Effective date', MARGIN, 158, CONTENT_W, 38);
+
+  sectionHeader(d, 'Bank account', 214);
+  field(d, 'bank-name', 'Bank name', MARGIN, 228, CONTENT_W, 38);
+  field(d, 'routing-number', 'Routing number', MARGIN, 274, 260, 38);
+  field(d, 'account-number', 'Account number', 312, 274, 260, 38);
+  field(d, 'account-type', 'Account type', MARGIN, 320, 260, 38);
+  field(d, 'deposit-amount', 'Amount / percent', 312, 320, 260, 38);
+
+  sectionHeader(d, 'Authorization', 376);
+  text(
+    d,
+    'By signing, I authorize recurring payroll deposits to the account above.',
+    MARGIN,
+    390,
+    9,
+    {
+      color: MUTED,
+    },
+  );
+  field(d, 'notes', 'Notes', MARGIN, 414, CONTENT_W, 64, { fontSize: 9 });
+  field(d, 'signature', 'Employee signature', MARGIN, 500, 300, 50);
+  field(d, 'signed-date', 'Date signed', 360, 500, 212, 50);
+
+  footer(d, 'Direct Deposit Authorization');
+}
+
 // --- Public API ---
 
 /** Static mapping list for a blueprint (no PDF render) — used by seed specs. */
@@ -303,6 +537,27 @@ export async function generateLibraryDocumentBlueprint(
       break;
     case 'trade-quote':
       drawTradeQuote(d);
+      break;
+    case 'change-order':
+      drawChangeOrder(d);
+      break;
+    case 'punch-list':
+      drawPunchList(d);
+      break;
+    case 'auto-repair-estimate':
+      drawAutoRepairEstimate(d);
+      break;
+    case 'booking-contract':
+      drawBookingContract(d);
+      break;
+    case 'permission-slip':
+      drawPermissionSlip(d);
+      break;
+    case 'bakery-order':
+      drawBakeryOrder(d);
+      break;
+    case 'direct-deposit-auth':
+      drawDirectDepositAuth(d);
       break;
     default: {
       const exhaustive: never = name;

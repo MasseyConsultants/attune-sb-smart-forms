@@ -1,69 +1,17 @@
 // Author: Robert Massey | Created: 2026-07-13 | Module: Seed / Library
-// Purpose: The curated PUBLIC gallery templates (39). Slugs are stable —
-// the seed upserts by slug so re-running refreshes content without duplicating
-// rows or resetting install counts. Every schema must pass
+// Purpose: The curated PUBLIC gallery templates (Wave 0 + Wave 1). Slugs are
+// stable — the seed upserts by slug so re-running refreshes content without
+// duplicating rows or resetting install counts. Every schema must pass
 // FormsService.validateSchema and every bundled graph must pass validateGraph;
 // the library seed spec enforces both.
 
-import type {
-  FieldDefinition,
-  FieldType,
-  FormSchema,
-  LibraryDocumentRef,
-  LibraryTemplateCategory,
-  LibraryWorkflowGraph,
-} from '@attune-sb/shared-types';
+import type { FieldDefinition } from '@attune-sb/shared-types';
 
-export interface LibrarySeedTemplate {
-  readonly slug: string;
-  readonly name: string;
-  readonly description: string;
-  readonly category: LibraryTemplateCategory;
-  readonly schema: FormSchema;
-  readonly workflow?: LibraryWorkflowGraph;
-  /** Bundled pre-mapped PDF blueprint, materialized on clone. */
-  readonly document?: LibraryDocumentRef;
-}
+import { f, fields, type FieldOptions, type LibrarySeedTemplate } from './library-seed-helpers';
+import { LIBRARY_SEED_WAVE1 } from './library-seed-wave1';
 
-interface FieldOptions {
-  readonly required?: boolean;
-  readonly page?: number;
-  readonly config?: Record<string, unknown>;
-  readonly description?: string;
-  readonly showWhen?: { fieldId: string; operator: 'equals' | 'not_equals'; value: unknown };
-}
-
-/** Terse field author — sortOrder comes from array position via fields(). */
-function f(id: string, type: FieldType, label: string, opts: FieldOptions = {}): FieldDefinition {
-  return {
-    id,
-    type,
-    label,
-    ...(opts.description ? { description: opts.description } : {}),
-    required: opts.required ?? false,
-    config: opts.config ?? {},
-    ...(opts.showWhen
-      ? {
-          conditionalVisibility: {
-            enabled: true,
-            rules: [
-              {
-                fieldId: opts.showWhen.fieldId,
-                operator: opts.showWhen.operator,
-                value: opts.showWhen.value,
-              },
-            ],
-          },
-        }
-      : {}),
-    sortOrder: 0,
-    page: opts.page ?? 1,
-  };
-}
-
-function fields(...defs: FieldDefinition[]): FieldDefinition[] {
-  return defs.map((d, i) => ({ ...d, sortOrder: i }));
-}
+export type { FieldOptions, LibrarySeedTemplate };
+export { f, fields };
 
 const YES_NO_DETAIL = (id: string, label: string, page = 1): FieldDefinition[] => [
   f(id, 'yesno', label, { required: true, page }),
@@ -74,7 +22,7 @@ const YES_NO_DETAIL = (id: string, label: string, page = 1): FieldDefinition[] =
   }),
 ];
 
-export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
+const LIBRARY_SEED_BASE: LibrarySeedTemplate[] = [
   // =========================================================================
   // INSPECTIONS & AUDITS
   // =========================================================================
@@ -2002,4 +1950,10 @@ export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
       ],
     },
   },
+];
+
+/** Full curated gallery: base catalog + Wave 1 P0 expansion. */
+export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
+  ...LIBRARY_SEED_BASE,
+  ...LIBRARY_SEED_WAVE1,
 ];

@@ -51,7 +51,17 @@ export interface LibraryWorkflowGraph {
  * form, so fill_document workflows run with zero setup. Names are stable —
  * the API's blueprint generator switches over them exhaustively.
  */
-export const LIBRARY_DOCUMENT_BLUEPRINTS = ['contractor-quote', 'trade-quote'] as const;
+export const LIBRARY_DOCUMENT_BLUEPRINTS = [
+  'contractor-quote',
+  'trade-quote',
+  'change-order',
+  'punch-list',
+  'auto-repair-estimate',
+  'booking-contract',
+  'permission-slip',
+  'bakery-order',
+  'direct-deposit-auth',
+] as const;
 
 export type LibraryDocumentBlueprintName = (typeof LIBRARY_DOCUMENT_BLUEPRINTS)[number];
 

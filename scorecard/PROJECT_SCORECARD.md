@@ -318,6 +318,15 @@
   14 checks): clone → document READY w/ 15 mappings linked to the clone →
   publish → public submit → run COMPLETED, quote PDF filled + emailed to
   customer and owner; filled PDF rendered and visually verified
+- Library Wave 1 (2026-07-16, SB-028): +36 P0 templates (gallery **39 → 75**).
+  New blueprints: change-order, punch-list, auto-repair-estimate,
+  booking-contract, permission-slip, bakery-order, direct-deposit-auth
+  (plus reused contractor-quote for electrical/plumbing/HVAC). Coverage:
+  trades closeout/quotes, auto estimate, salon/tattoo/trainer, musician +
+  photo contracts, coaching/SOW/MSP, dental/vet, property, food, camp/
+  donation, website lead, PO, vendor onboard. Seed module split:
+  `library-seed-wave1.ts` + helpers. Library seed specs: ≥70 templates,
+  ≥25 document workflows; 392 library-module tests green; DB seeded 75.
 
 ## Sprint 10 Task Status
 
