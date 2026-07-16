@@ -1,7 +1,10 @@
 // Author: Robert Massey | Created: 2026-07-12 | Module: Seed
-// Purpose: Idempotent development seed — plan rows (mirroring PLAN_ENTITLEMENTS),
-// a demo org on an active trial, and the Attune platform admin.
+// Purpose: Idempotent seed — plan rows (mirroring PLAN_ENTITLEMENTS), the Attune
+// platform admin, and the curated library templates. Demo orgs (with well-known
+// passwords) are seeded in development ONLY — never in production.
 // Run: pnpm db:seed (from repo root) or pnpm seed (from api/).
+// In production the platform admin is created only when PLATFORM_ADMIN_PASSWORD
+// is provided via env; dev falls back to the printed defaults below.
 
 import { LIBRARY_CATEGORIES } from '@attune-sb/shared-types';
 import {
@@ -17,11 +20,12 @@ import { LIBRARY_SEED_TEMPLATES } from './library-seed-data';
 
 const prisma = new PrismaClient();
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const TRIAL_LENGTH_DAYS = 14;
 
-// Dev-only credentials — printed at the end of the seed run.
-const PLATFORM_ADMIN_EMAIL = 'admin@attuneitus.com';
-const PLATFORM_ADMIN_PASSWORD = 'AttunePlatform#2026';
+// Dev-only fallback credentials — printed at the end of a dev seed run.
+const PLATFORM_ADMIN_EMAIL = process.env.PLATFORM_ADMIN_EMAIL ?? 'admin@attuneitus.com';
+const PLATFORM_ADMIN_PASSWORD = process.env.PLATFORM_ADMIN_PASSWORD ?? 'AttunePlatform#2026';
 const DEMO_OWNER_EMAIL = 'owner@demo.attune-sb.local';
 const DEMO_OWNER_PASSWORD = 'DemoOwnerPass#2026';
 
@@ -86,6 +90,13 @@ async function seedPlans(): Promise<void> {
 }
 
 async function seedPlatformAdmin(): Promise<void> {
+  // In production, refuse to create the admin from the hardcoded dev fallback:
+  // an explicit PLATFORM_ADMIN_PASSWORD env var is required, otherwise skip.
+  if (IS_PRODUCTION && !process.env.PLATFORM_ADMIN_PASSWORD) {
+    console.warn('Skipped platform admin (set PLATFORM_ADMIN_PASSWORD to seed it in production)');
+    return;
+  }
+
   // Platform staff live in a dedicated internal org that is never metered or purged.
   const platformOrg = await prisma.organization.upsert({
     where: { slug: 'attune-platform' },
@@ -238,9 +249,16 @@ async function seedLibraryTemplates(): Promise<void> {
 async function main(): Promise<void> {
   await seedPlans();
   await seedPlatformAdmin();
+  await seedLibraryTemplates();
+
+  // Demo orgs carry well-known passwords — development convenience only.
+  if (IS_PRODUCTION) {
+    console.warn('Production seed complete (plans, platform admin, library templates)');
+    return;
+  }
+
   await seedDemoOrg();
   await seedTierOrgs();
-  await seedLibraryTemplates();
 
   console.warn('');
   console.warn('=== Seed complete — dev credentials ===');

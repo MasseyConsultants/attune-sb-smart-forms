@@ -1,0 +1,22 @@
+# Build context hygiene — keep images and context small.
+.git
+.github
+.husky
+node_modules
+**/node_modules
+**/dist
+**/dist-seed
+**/.next
+**/.turbo
+**/coverage
+api/storage
+repo-seed
+planning
+scorecard
+terminals
+docs
+**/.env
+**/.env.*
+!**/.env.example
+*.md
+!README.md

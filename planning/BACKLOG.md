@@ -29,6 +29,7 @@
 | SB-021 | P2       | Attribute submissions to logged-in team members (submittedById) for member-level data views                     | Owner request 2026-07-14      | After SB-020              | Public intake is anonymous by design; would detect an org session on /f/[slug] and stamp the row                                                                                            |
 | SB-022 | P2       | Calculated fields compute at fill time (formula engine: area = length × height, totals = qty × rate)            | Quote templates 2026-07-15    | v1.1                      | Quote templates currently ask the sub to enter wall area + totals by hand; a live formula engine would auto-compute them from the dimension fields                                          |
 | SB-023 | P2       | Org branding on generated/blueprint PDFs (logo, company name/address block replacing the generic header)        | Quote templates 2026-07-15    | v1.1                      | Blueprint quote header is Attune-branded today; orgs will want their own logo on customer-facing quotes — pair with a per-org branding settings page                                        |
+| SB-024 | P2       | Azure migration (Container Apps + managed Postgres/Redis + object storage)                                      | Owner decision 2026-07-15     | Post-launch, scale-driven | VPS is production for launch (S10). Prereq: SB-017 blob driver before multi-instance. Runbook in docs/DEPLOYMENT.md § Azure pathway — images/env are already portable by design             |
 
 ## Completed
 

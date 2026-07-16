@@ -1,0 +1,139 @@
+# Author: Robert Massey | Created: 2026-07-15 | Module: CI / Production deploy
+# Manual-trigger deploy to the Hostinger VPS: build+push images to GHCR, then
+# SSH in and roll the compose stack to the new image tags. The deploy job is
+# bound to the `production` environment — configure a required reviewer there
+# for the manual-approval gate (CI/CD rule).
+#
+# Required repo secrets:
+#   VPS_HOST      — server address (srv1286562.hstgr.cloud or IP)
+#   VPS_USER      — ssh user (root)
+#   VPS_SSH_KEY   — private key matching the server's authorized_keys
+#                   (the existing github-actions-deploy@attuneitus.com key)
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (default: the commit SHA being built)'
+        required: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/attune-sb-smart-forms
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: tag
+        run: echo "tag=${{ github.event.inputs.image_tag || github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build + push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/api.Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}-api:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE_BASE }}-api:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: Build + push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web.Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}-web:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE_BASE }}-web:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Manual approval gate: add a required reviewer on the `production`
+    # environment in repo settings.
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy compose + nginx template to the server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: 'docker/docker-compose.prod.yml,docker/env.production.example,docker/nginx/attune-sb.conf.template,scripts/vps-setup.sh'
+          target: /opt/attune-sb
+          strip_components: 1
+
+      - name: Roll the stack to the new images
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          TAG: ${{ needs.build-push.outputs.tag }}
+          IMAGE_BASE: ${{ env.IMAGE_BASE }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: TAG,IMAGE_BASE,GHCR_TOKEN,GHCR_USER
+          script: |
+            set -e
+            cd /opt/attune-sb
+            test -f .env || { echo "/opt/attune-sb/.env missing — run vps-setup.sh first"; exit 1; }
+            # Ephemeral login: the workflow token authorizes the pull; nothing persists.
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            export API_IMAGE="$IMAGE_BASE-api:$TAG"
+            export WEB_IMAGE="$IMAGE_BASE-web:$TAG"
+            docker compose -f docker-compose.prod.yml --env-file .env pull
+            docker compose -f docker-compose.prod.yml --env-file .env up -d --remove-orphans
+            docker logout ghcr.io
+            docker image prune -f
+            # Record the deployed tag for rollbacks (redeploy with image_tag=<old sha>).
+            echo "$TAG $(date -u +%FT%TZ)" >> deploy-history.log
+            echo "Deployed tag: $TAG"
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            for i in $(seq 1 30); do
+              if curl -sf http://127.0.0.1:3101/api/v1/health >/dev/null; then
+                echo "API healthy"; exit 0
+              fi
+              sleep 5
+            done
+            echo "API failed to become healthy"; docker compose -f /opt/attune-sb/docker-compose.prod.yml logs --tail 100 api; exit 1

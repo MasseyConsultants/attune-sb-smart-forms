@@ -9,6 +9,7 @@ import type { IncomingMessage } from 'http';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import * as bodyParser from 'body-parser';
 import helmet from 'helmet';
@@ -19,7 +20,15 @@ import { SecureLoggerService } from './modules/common/logger/secure-logger.servi
 
 async function bootstrap(): Promise<void> {
   const logger = new SecureLoggerService('Bootstrap');
-  const app = await NestFactory.create(AppModule, { logger, rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger,
+    rawBody: true,
+  });
+
+  // Behind the reverse proxy (nginx on the VPS, ingress on Azure later) the
+  // socket peer is the proxy — trust one hop so @Ip()/throttling see the real
+  // client address from X-Forwarded-For. Harmless in dev (no proxy, no header).
+  app.set('trust proxy', 1);
 
   // 10 MB body limit: public form submissions can carry base64 signatures/photos.
   // Registered AFTER NestFactory.create so they override the 100 kb defaults.

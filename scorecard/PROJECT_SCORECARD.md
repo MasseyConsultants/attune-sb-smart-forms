@@ -5,10 +5,9 @@
 
 ## Current Status
 
-- **Phase:** P5 Library + Polish — ✅ complete (S9 closed 2026-07-13); next up
-  P6 Launch Hardening (S10)
-- **Current sprint:** Sprint 9 closed — template gallery + clone flow,
-  in-app notifications, branding gate audit, admin console (SB-016)
+- **Phase:** P6 Launch Hardening — in progress (S10 started 2026-07-15)
+- **Current sprint:** Sprint 10 — production deploy to the Hostinger VPS
+  (`sfsb.attuneitus.com`, domain variable); Azure pathway documented for later
 - **Version:** 0.1.0
 
 ## Phase Progress
@@ -21,7 +20,7 @@
 | P3 SmartMapper      | S5–S6   | ✅ Complete | 2026-07-13 — upload, canvas, auto-map, fill runtime, storage metering  |
 | P4 Workflow Builder | S7–S8   | ✅ Complete | 2026-07-13 — engine + visual builder, approvals, SSRF'd webhooks, runs |
 | P5 Library + Polish | S9      | ✅ Complete | 2026-07-13 — 27-template gallery, clone, notifications, admin console  |
-| P6 Launch Hardening | S10–S11 | Not started | —                                                                      |
+| P6 Launch Hardening | S10–S11 | In progress | S10 started 2026-07-15 — VPS production deploy pipeline                |
 
 ## Sprint 0 Task Status
 
@@ -319,6 +318,34 @@
   14 checks): clone → document READY w/ 15 mappings linked to the clone →
   publish → public submit → run COMPLETED, quote PDF filled + emailed to
   customer and owner; filled PDF rendered and visually verified
+
+## Sprint 10 Task Status
+
+| #   | Task                          | Status      | Notes                                                                       |
+| --- | ----------------------------- | ----------- | --------------------------------------------------------------------------- |
+| 0   | VPS reclaim + clean           | ✅ Done     | 2026-07-15 — enterprise stack + Budibase + MariaDB wiped; 4 GB swap added   |
+| 1   | Production images (docker/)   | ✅ Done     | api (Chromium/tini/prisma/compiled seed) + web (standalone, relative URL)   |
+| 2   | Production seed safety        | ✅ Done     | Demo orgs dev-only; prod admin requires PLATFORM_ADMIN_PASSWORD env         |
+| 3   | trust proxy (real client IPs) | ✅ Done     | main.ts — @Ip()/throttles read X-Forwarded-For behind nginx                 |
+| 4   | Compose + nginx + env + setup | ✅ Done     | docker-compose.prod.yml, attune-sb.conf.template, vps-setup.sh              |
+| 5   | Deploy pipeline (GHCR + SSH)  | ✅ Done     | deploy.yml — manual trigger, production env approval gate, health check     |
+| 6   | Docs                          | ✅ Done     | docs/DEPLOYMENT.md (VPS + Azure pathways), ADR-0005                         |
+| 7   | Remaining hardening           | Not started | Backups/restore drill, Stripe live, Resend domain, uptime, semantic-release |
+
+## Sprint 10 Verification (2026-07-15, partial — pre-first-deploy)
+
+- Both production images build clean from the repo root (api ~4 min cold,
+  web ~70 s); lockfile updated for the prisma dep move
+- Local smoke of the full prod stack (`docker-compose.prod.yml` + test .env):
+  boot ran all 9 migrations + production seed (3 plans, platform admin from
+  env, 39 library templates — NO demo orgs); `/api/v1/health` 200; web /login
+  200; Chromium 150 headless PDF render inside the api container OK
+- End-to-end signup through the web BFF (web container → api container over
+  the compose network): 201, org + OWNER + trial created, httpOnly cookies set
+- 615 API tests / 31 suites, 96 web tests / 18 suites, lint + typecheck —
+  all green after the changes (trust proxy, prod-aware seed, tracing root)
+- Still pending for sprint close: first real deploy to the VPS (needs DNS +
+  `.env` + GitHub secrets/environment), then task 7 hardening
 
 ## Quality Gates
 
