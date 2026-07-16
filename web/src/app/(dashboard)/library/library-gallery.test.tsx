@@ -3,7 +3,7 @@
 // and a clone failure surfaces inline instead of navigating.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import { LibraryGallery } from './library-gallery';
 
@@ -18,6 +18,7 @@ const TEMPLATE = {
   name: 'Client Intake',
   description: 'Collect new client details',
   category: 'intake',
+  tags: ['professional-services'],
   scope: 'PUBLIC',
   fieldCount: 8,
   pageCount: 2,
@@ -77,15 +78,18 @@ describe('LibraryGallery', () => {
 
     // Wait for the card itself — "Client Intake" alone also matches the category pill.
     expect(await screen.findByRole('button', { name: /use this template/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Client Intake' })).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { name: 'Client Intake' });
+    const card = heading.closest('div');
+    expect(card).not.toBeNull();
     // Field/page facts render as sibling text nodes inside one span.
     expect(
-      screen.getByText(
+      within(card as HTMLElement).getByText(
         (_, node) =>
           node?.tagName === 'SPAN' && /8 fields\s*·\s*2 pages/.test(node.textContent ?? ''),
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText('Includes workflow')).toBeInTheDocument();
+    // Browse filter toggle uses the same label — scope to the card badge.
+    expect(within(card as HTMLElement).getByText('Includes workflow')).toBeInTheDocument();
   });
 
   it('clones on "Use this template" and routes to the new draft form', async () => {
