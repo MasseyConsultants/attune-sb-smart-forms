@@ -88,6 +88,10 @@ jobs:
     needs: build-push
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      # The server-side `docker login ghcr.io` uses this job's GITHUB_TOKEN.
+      packages: read
     steps:
       - uses: actions/checkout@v4
 
