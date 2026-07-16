@@ -332,6 +332,25 @@
 | 6   | Docs                          | ✅ Done     | docs/DEPLOYMENT.md (VPS + Azure pathways), ADR-0005                         |
 | 7   | Remaining hardening           | Not started | Backups/restore drill, Stripe live, Resend domain, uptime, semantic-release |
 
+## Sprint 10 Verification (2026-07-15 — FIRST PRODUCTION DEPLOY LIVE)
+
+- **Production is live at `https://sfsb.attuneitus.com`** — first automated
+  deploy (commit `5dfc871`) went green end to end: CI → Deploy (build-push
+  4m36s, deploy 1m49s) → GHCR images pulled on the VPS → stack rolled →
+  workflow health check passed
+- Verified from outside the VPS: `/api/v1/health` 200
+  `{status: ok, version: 0.1.0}` (migrations + production seed ran on boot);
+  `/login` 200 in ~0.2 s over valid TLS (Let's Encrypt, HTTP→HTTPS redirect)
+- Pipeline is now fully automated: push to main → green CI → auto-deploy.
+  Rollback = manual Deploy run with `image_tag` of a prior SHA
+  (`/opt/attune-sb/deploy-history.log` on the server)
+- Deploy-day fixes: GHCR tag lowercased (org name is mixed-case), deploy job
+  granted `packages: read`, lost `github-actions-deploy` key regenerated
+  (Ed25519) + old key removed from authorized_keys, firewalld SSH rich rule
+  (3/min rate limit) removed — it was timing out the Actions runners
+- Still pending for sprint close: owner browser click-through (signup →
+  build → publish → public submit over HTTPS), then task 7 hardening
+
 ## Sprint 10 Verification (2026-07-15, partial — pre-first-deploy)
 
 - Both production images build clean from the repo root (api ~4 min cold,
@@ -357,12 +376,13 @@
 
 ## Unplanned Items
 
-| Date       | Item                                                                | Resolution                                  |
-| ---------- | ------------------------------------------------------------------- | ------------------------------------------- |
-| 2026-07-12 | `HttpExceptionFilter` crashed on Terminus object-shaped `error`     | Fixed + regression spec                     |
-| 2026-07-12 | Nest `deleteOutDir` + stale tsbuildinfo emitted incomplete `dist/`  | `incremental: false` in tsconfig.build.json |
-| 2026-07-12 | `repo-seed/` starter bundle excluded from git (duplicates planning) | Added to .gitignore                         |
-| 2026-07-13 | Sidebar logo SVG had raw `0x14` bytes → XML unparseable, broken img | Bytes replaced with hyphens; logo renders   |
+| Date       | Item                                                                                                                     | Resolution                                                                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-07-12 | `HttpExceptionFilter` crashed on Terminus object-shaped `error`                                                          | Fixed + regression spec                                                                                                                                            |
+| 2026-07-12 | Nest `deleteOutDir` + stale tsbuildinfo emitted incomplete `dist/`                                                       | `incremental: false` in tsconfig.build.json                                                                                                                        |
+| 2026-07-12 | `repo-seed/` starter bundle excluded from git (duplicates planning)                                                      | Added to .gitignore                                                                                                                                                |
+| 2026-07-13 | Sidebar logo SVG had raw `0x14` bytes → XML unparseable, broken img                                                      | Bytes replaced with hyphens; logo renders                                                                                                                          |
+| 2026-07-15 | Platform org had no Subscription row → fell back to TRIAL limits (2 seats, all trial caps) — admin couldn't invite staff | Seed now writes unlimited EntitlementOverride rows for the platform org (idempotent, refreshes on boot); team view renders "unlimited" for MAX_SAFE_INTEGER limits |
 
 ## Changelog
 
