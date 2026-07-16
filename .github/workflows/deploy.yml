@@ -30,7 +30,9 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/attune-sb-smart-forms
+  # Lowercase literal: image names must be lowercase, but the GitHub org is
+  # "MasseyConsultants" — github.repository_owner would produce an invalid tag.
+  IMAGE_BASE: ghcr.io/masseyconsultants/attune-sb-smart-forms
 
 jobs:
   build-push:
