@@ -56,18 +56,19 @@ App lives in `/opt/attune-sb`.
 3. `bash vps-setup.sh` — installs certbot, sets the SELinux boolean, issues the
    cert, renders + activates the nginx site, pulls and starts the stack.
 4. GitHub repo setup: secrets `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` (the
-   existing `github-actions-deploy` key), and a `production` environment with a
-   required reviewer (this is the manual deploy approval gate).
+   existing `github-actions-deploy` key).
 
 ### Deploying a release
 
-Run the **Deploy** workflow (Actions → Deploy → Run workflow). It builds both
-images, pushes them to GHCR tagged with the commit SHA + `latest`, waits for
-the environment approval, then rolls the stack over SSH and health-checks
-`/api/v1/health`.
+**Fully automated** (owner decision 2026-07-15, build/test phase): every push
+to `main` runs CI, and a green CI run triggers Deploy automatically — images
+are built, pushed to GHCR (commit SHA + `latest`), rolled onto the VPS over
+SSH, and health-checked at `/api/v1/health`. Green tests are the only gate.
+Before onboarding real customers, re-add the `production` environment approval
+gate to the deploy job (see the note in `deploy.yml`).
 
-**Rollback:** run Deploy again with `image_tag` set to a previously deployed
-SHA (see `/opt/attune-sb/deploy-history.log`).
+**Manual/rollback:** Actions → Deploy → Run workflow. Set `image_tag` to a
+previously deployed SHA to roll back (see `/opt/attune-sb/deploy-history.log`).
 
 ### Backups (data that must survive the box)
 
