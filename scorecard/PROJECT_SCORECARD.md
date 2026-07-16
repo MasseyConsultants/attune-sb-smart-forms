@@ -328,7 +328,7 @@
 | 2   | Production seed safety        | ✅ Done     | Demo orgs dev-only; prod admin requires PLATFORM_ADMIN_PASSWORD env         |
 | 3   | trust proxy (real client IPs) | ✅ Done     | main.ts — @Ip()/throttles read X-Forwarded-For behind nginx                 |
 | 4   | Compose + nginx + env + setup | ✅ Done     | docker-compose.prod.yml, attune-sb.conf.template, vps-setup.sh              |
-| 5   | Deploy pipeline (GHCR + SSH)  | ✅ Done     | deploy.yml — manual trigger, production env approval gate, health check     |
+| 5   | Deploy pipeline (GHCR + SSH)  | ✅ Done     | deploy.yml — AUTO on green CI (owner decision; re-gate before customers)    |
 | 6   | Docs                          | ✅ Done     | docs/DEPLOYMENT.md (VPS + Azure pathways), ADR-0005                         |
 | 7   | Remaining hardening           | Not started | Backups/restore drill, Stripe live, Resend domain, uptime, semantic-release |
 
