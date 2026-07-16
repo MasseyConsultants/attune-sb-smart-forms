@@ -65,7 +65,9 @@ function pageCountOf(schema: FormSchema): number {
 const INDUSTRY_TAG_SET = new Set<string>(LIBRARY_INDUSTRY_TAGS);
 
 function toIndustryTags(raw: string[] | null | undefined): LibraryIndustryTag[] {
-  if (!raw?.length) return [];
+  if (!raw?.length) {
+    return [];
+  }
   return raw.filter((t): t is LibraryIndustryTag => INDUSTRY_TAG_SET.has(t));
 }
 

@@ -141,7 +141,9 @@ export class LibraryRepository {
     includeDescription: boolean,
   ): Prisma.LibraryTemplateWhereInput {
     const term = search?.trim();
-    if (!term) return {};
+    if (!term) {
+      return {};
+    }
 
     const or: Prisma.LibraryTemplateWhereInput[] = [
       { name: { contains: term, mode: 'insensitive' } },
@@ -178,9 +180,13 @@ export class LibraryRepository {
 /** Match search text against industry tag slugs and labels. */
 export function matchIndustryTags(search: string): LibraryIndustryTag[] {
   const needle = search.trim().toLowerCase();
-  if (!needle) return [];
+  if (!needle) {
+    return [];
+  }
   return LIBRARY_INDUSTRY_TAGS.filter((tag) => {
-    if (tag.includes(needle) || needle.includes(tag)) return true;
+    if (tag.includes(needle) || needle.includes(tag)) {
+      return true;
+    }
     const label = LIBRARY_INDUSTRY_TAG_LABELS[tag].toLowerCase();
     return label.includes(needle);
   });
