@@ -61,6 +61,8 @@ export const LIBRARY_DOCUMENT_BLUEPRINTS = [
   'permission-slip',
   'bakery-order',
   'direct-deposit-auth',
+  'service-report',
+  'records-release',
 ] as const;
 
 export type LibraryDocumentBlueprintName = (typeof LIBRARY_DOCUMENT_BLUEPRINTS)[number];

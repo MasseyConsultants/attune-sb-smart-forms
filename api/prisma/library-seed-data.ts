@@ -9,6 +9,7 @@ import type { FieldDefinition } from '@attune-sb/shared-types';
 
 import { f, fields, type FieldOptions, type LibrarySeedTemplate } from './library-seed-helpers';
 import { LIBRARY_SEED_WAVE1 } from './library-seed-wave1';
+import { LIBRARY_SEED_WAVE2 } from './library-seed-wave2';
 
 export type { FieldOptions, LibrarySeedTemplate };
 export { f, fields };
@@ -1952,8 +1953,9 @@ const LIBRARY_SEED_BASE: LibrarySeedTemplate[] = [
   },
 ];
 
-/** Full curated gallery: base catalog + Wave 1 P0 expansion. */
+/** Full curated gallery: base + Wave 1 (P0) + Wave 2 (P1). */
 export const LIBRARY_SEED_TEMPLATES: LibrarySeedTemplate[] = [
   ...LIBRARY_SEED_BASE,
   ...LIBRARY_SEED_WAVE1,
+  ...LIBRARY_SEED_WAVE2,
 ];

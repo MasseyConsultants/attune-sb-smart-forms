@@ -1,9 +1,9 @@
 # Library Catalog Expansion Plan — 100+ High-Value SMB Templates
 
 > Author: Robert Massey | Created: 2026-07-16  
-> Status: **Wave 1 shipped** (2026-07-16) — Waves 2–3 still planned  
+> Status: **Waves 1–2 shipped** (2026-07-16) — Wave 3 still planned  
 > Backlog: SB-028  
-> Current shipped gallery: **75** curated PUBLIC templates (8 categories)
+> Current shipped gallery: **123** curated PUBLIC templates (8 categories)
 
 ---
 
@@ -336,9 +336,14 @@ Ship these first. Bias toward **Tier A** (PDF) and universal lead/ops forms.
 - Smoke: clone → publish → submit → PDF emailed for at least 3 vertical heroes
   (musician contract, auto estimate, punch list)
 
-### Wave 2 — P1 (~40)
+### Wave 2 — P1 (~40) — ✅ shipped 2026-07-16
 
 Fill vertical depth (landscaping, DJ, dental/chiro, retail returns, HOA, etc.).
+
+**Shipped:** **48** P1 templates → gallery **75 → 123**. New blueprints:
+`service-report`, `records-release` (reused Wave 1 engines where layout fit).
+Implementation: `api/prisma/library-seed-wave2.ts`. Seed specs: ≥110 templates,
+≥40 document workflows; 632 library-module tests green; DB seeded 123.
 
 ### Wave 3 — P2 (~40)
 
@@ -415,19 +420,22 @@ over 12 near-duplicate PDF generators.
 - [x] Tier A bias for PDF heroes + Tier B workflows for lead/intake
 - [x] Flagship verticals: **Trades**, **Creative/Musician**, **Beauty/Wellness**
 - [x] Wave 1 seeded (36 templates → gallery **75** total)
+- [x] Wave 2 seeded (48 templates → gallery **123** total)
 
 ---
 
 ## 11. Summary counts
 
-| Bucket                                       | Count             |
-| -------------------------------------------- | ----------------- |
-| Shipped before Wave 1                        | 39                |
-| Wave 1 shipped (2026-07-16)                  | **36**            |
-| **Gallery now**                              | **75**            |
-| Still planned Wave 2 (P1)                    | ~40               |
-| Still planned Wave 3 (P2)                    | ~40               |
-| New planned remaining (L-IDs not yet seeded) | see §5 P1/P2 rows |
+| Bucket                                       | Count          |
+| -------------------------------------------- | -------------- |
+| Shipped before Wave 1                        | 39             |
+| Wave 1 shipped (2026-07-16)                  | **36**         |
+| Wave 2 shipped (2026-07-16)                  | **48**         |
+| **Gallery now**                              | **123**        |
+| Document blueprints (mapped PDF engines)     | **11**         |
+| Still planned Wave 3 (P2)                    | ~40            |
+| New planned remaining (L-IDs not yet seeded) | see §5 P2 rows |
 
-Wave 1 implementation lives in `api/prisma/library-seed-wave1.ts` + new
-blueprints in `document-blueprints.ts`.
+Wave 1/2 live in `api/prisma/library-seed-wave{1,2}.ts` + blueprints in
+`document-blueprints.ts`. **~21** templates carry a Tier A blueprint; others
+use `pdf_generate`, notify/ack, or form-only (Tier B/C).

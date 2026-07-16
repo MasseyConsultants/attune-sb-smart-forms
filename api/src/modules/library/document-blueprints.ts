@@ -516,6 +516,77 @@ function drawDirectDepositAuth(d: Draw): void {
   footer(d, 'Direct Deposit Authorization');
 }
 
+function drawServiceReport(d: Draw): void {
+  header(d, 'SERVICE REPORT', 'Work completed & customer sign-off');
+
+  field(d, 'service-date', 'Service date', MARGIN, 112, 170, 38);
+  field(d, 'job-number', 'Job / ticket #', 222, 112, 170, 38);
+  field(d, 'technician', 'Technician', 404, 112, 168, 38);
+
+  sectionHeader(d, 'Customer', 168);
+  field(d, 'customer-name', 'Name', MARGIN, 182, 260, 38);
+  field(d, 'customer-email', 'Email', 312, 182, 260, 38);
+  field(d, 'customer-phone', 'Phone', MARGIN, 228, 260, 38);
+  field(d, 'service-address', 'Service address', 312, 228, 260, 38);
+
+  sectionHeader(d, 'Work performed', 284);
+  field(d, 'service-type', 'Service type', MARGIN, 298, CONTENT_W, 38);
+  field(d, 'work-performed', 'Work performed', MARGIN, 344, CONTENT_W, 100, {
+    fontSize: 9,
+  });
+  field(d, 'materials-used', 'Materials / products used', MARGIN, 452, CONTENT_W, 64, {
+    fontSize: 9,
+  });
+
+  sectionHeader(d, 'Findings & follow-up', 534);
+  field(d, 'findings', 'Findings / recommendations', MARGIN, 548, CONTENT_W, 64, {
+    fontSize: 9,
+  });
+  field(d, 'follow-up', 'Follow-up needed', MARGIN, 620, CONTENT_W, 38);
+
+  field(d, 'signature', 'Customer sign-off', MARGIN, 670, 300, 50);
+  field(d, 'tech-signature', 'Technician signature', 360, 670, 212, 50);
+
+  footer(d, 'Field Service Report');
+}
+
+function drawRecordsRelease(d: Draw): void {
+  header(d, 'RECORDS RELEASE', 'Authorization to release information');
+
+  field(d, 'signed-date', 'Date', MARGIN, 112, CONTENT_W, 38);
+
+  sectionHeader(d, 'Patient / client', 168);
+  field(d, 'patient-name', 'Full name', MARGIN, 182, 260, 38);
+  field(d, 'customer-email', 'Email', 312, 182, 260, 38);
+  field(d, 'dob', 'Date of birth', MARGIN, 228, 260, 38);
+  field(d, 'phone', 'Phone', 312, 228, 260, 38);
+
+  sectionHeader(d, 'Release to', 284);
+  field(d, 'recipient-name', 'Recipient name / organization', MARGIN, 298, CONTENT_W, 38);
+  field(d, 'recipient-address', 'Recipient address / fax / email', MARGIN, 344, CONTENT_W, 38);
+
+  sectionHeader(d, 'Records requested', 400);
+  field(d, 'records-description', 'Description of records to release', MARGIN, 414, CONTENT_W, 80, {
+    fontSize: 9,
+  });
+  field(d, 'purpose', 'Purpose of release', MARGIN, 502, CONTENT_W, 38);
+  field(d, 'expiration', 'Authorization expires', MARGIN, 548, CONTENT_W, 38);
+
+  sectionHeader(d, 'Authorization', 604);
+  text(
+    d,
+    'By signing, I authorize release of the records described above to the named recipient.',
+    MARGIN,
+    618,
+    9,
+    { color: MUTED },
+  );
+  field(d, 'signature', 'Patient / guardian signature', MARGIN, 640, 300, 50);
+  field(d, 'witness', 'Witness (optional)', 360, 640, 212, 50);
+
+  footer(d, 'Medical / Records Release Authorization');
+}
+
 // --- Public API ---
 
 /** Static mapping list for a blueprint (no PDF render) — used by seed specs. */
@@ -558,6 +629,12 @@ export async function generateLibraryDocumentBlueprint(
       break;
     case 'direct-deposit-auth':
       drawDirectDepositAuth(d);
+      break;
+    case 'service-report':
+      drawServiceReport(d);
+      break;
+    case 'records-release':
+      drawRecordsRelease(d);
       break;
     default: {
       const exhaustive: never = name;

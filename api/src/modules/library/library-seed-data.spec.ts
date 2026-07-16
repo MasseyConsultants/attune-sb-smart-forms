@@ -21,15 +21,15 @@ const formsService = new FormsService(
 );
 
 describe('curated library seed data', () => {
-  it('contains at least 70 templates (base + Wave 1)', () => {
-    expect(LIBRARY_SEED_TEMPLATES.length).toBeGreaterThanOrEqual(70);
+  it('contains at least 110 templates (base + Wave 1 + Wave 2)', () => {
+    expect(LIBRARY_SEED_TEMPLATES.length).toBeGreaterThanOrEqual(110);
   });
 
-  it('ships at least 25 document-producing workflows (pdf_generate or fill_document)', () => {
+  it('ships at least 40 document-producing workflows (pdf_generate or fill_document)', () => {
     const docWorkflows = LIBRARY_SEED_TEMPLATES.filter((t) =>
       t.workflow?.nodes.some((n) => n.type === 'pdf_generate' || n.type === 'fill_document'),
     );
-    expect(docWorkflows.length).toBeGreaterThanOrEqual(25);
+    expect(docWorkflows.length).toBeGreaterThanOrEqual(40);
   });
 
   it('has unique slugs', () => {

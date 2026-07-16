@@ -8,6 +8,8 @@
 - **Phase:** P6 Launch Hardening — in progress (S10 started 2026-07-15)
 - **Current sprint:** Sprint 10 — production deploy to the Hostinger VPS
   (`sfsb.attuneitus.com`, domain variable); Azure pathway documented for later
+- **Parallel track:** SB-007 mobile Phase 0 scaffold (2026-07-16) — Expo field
+  app + `@attune-sb/mobile-shared`; see `planning/MOBILE_PLAN.md` + ADR-0007
 - **Version:** 0.1.0
 
 ## Phase Progress
@@ -327,6 +329,13 @@
   donation, website lead, PO, vendor onboard. Seed module split:
   `library-seed-wave1.ts` + helpers. Library seed specs: ≥70 templates,
   ≥25 document workflows; 392 library-module tests green; DB seeded 75.
+- Library Wave 2 (2026-07-16, SB-028): +48 P1 templates (gallery **75 → 123**).
+  New blueprints: service-report, records-release (11 engines total; **21**
+  templates carry mapped PDF blueprints; others Tier B/C or pdf_generate).
+  Vertical depth: landscaping/painting/pest, auto/tow, beauty/medspa, DJ/
+  venue, agency/tax, chiro/counseling/telehealth, realty, food truck/retail,
+  after-school/volunteer, HR exit/near-miss. Seed: `library-seed-wave2.ts`.
+  Specs ≥110 templates / ≥40 doc workflows; 632 library-module tests; DB 123.
 
 ## Sprint 10 Task Status
 
@@ -412,10 +421,20 @@
 | Web test coverage | 70%    | Growing — 16 suites / 83 tests (+ 42 engine tests in form-engine)                                   |
 | CI status         | Green  | Workflow added S0; validating on pushes                                                             |
 
+## Mobile Phase 0 (SB-007 fast-track, 2026-07-16)
+
+| #   | Task                                    | Status  | Notes                                                              |
+| --- | --------------------------------------- | ------- | ------------------------------------------------------------------ |
+| 1   | MOBILE_PLAN + ADR-0007 (amends ADR-004) | ✅ Done | One field app; vendor/PIN stays cut                                |
+| 2   | `@attune-sb/mobile-shared` scaffold     | ✅ Done | Brand, TokenStorage, authenticated axios client                    |
+| 3   | `mobile-apps/field-app` Expo 54 shell   | ✅ Done | Branded splash/icons, tabs stubs, Play policy plugin, EAS profiles |
+| 4   | Workspace + CI + manual EAS workflow    | ✅ Done | `mobile-apps/*` in pnpm/turbo; CI lint/typecheck; `mobile-eas.yml` |
+
 ## Unplanned Items
 
 | Date       | Item                                                                                                                     | Resolution                                                                                                                                                         |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-07-16 | Owner requested native mobile start (ADR-004 was post-PMF)                                                               | Fast-tracked SB-007 Phase 0; ADR-0007; plan in `planning/MOBILE_PLAN.md`                                                                                           |
 | 2026-07-12 | `HttpExceptionFilter` crashed on Terminus object-shaped `error`                                                          | Fixed + regression spec                                                                                                                                            |
 | 2026-07-12 | Nest `deleteOutDir` + stale tsbuildinfo emitted incomplete `dist/`                                                       | `incremental: false` in tsconfig.build.json                                                                                                                        |
 | 2026-07-12 | `repo-seed/` starter bundle excluded from git (duplicates planning)                                                      | Added to .gitignore                                                                                                                                                |
