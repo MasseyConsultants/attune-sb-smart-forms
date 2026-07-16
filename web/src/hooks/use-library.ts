@@ -48,21 +48,54 @@ interface LibraryList {
   readonly total: number;
 }
 
-export function useGalleryTemplates(category?: string, search?: string) {
-  const params = new URLSearchParams({ pageSize: '100' });
-  if (category) params.set('category', category);
-  if (search) params.set('search', search);
+export interface LibraryListQuery {
+  readonly category?: string;
+  readonly tag?: string;
+  readonly search?: string;
+  readonly hasDocument?: boolean;
+  readonly hasWorkflow?: boolean;
+}
+
+function toLibraryParams(query: LibraryListQuery = {}): URLSearchParams {
+  const params = new URLSearchParams({ pageSize: '200' });
+  if (query.category) params.set('category', query.category);
+  if (query.tag) params.set('tag', query.tag);
+  if (query.search) params.set('search', query.search);
+  if (query.hasDocument) params.set('hasDocument', 'true');
+  if (query.hasWorkflow) params.set('hasWorkflow', 'true');
+  return params;
+}
+
+export function useGalleryTemplates(query: LibraryListQuery = {}) {
+  const params = toLibraryParams(query);
   return useQuery({
-    queryKey: ['library', 'public', category ?? 'all', search ?? ''],
+    queryKey: [
+      'library',
+      'public',
+      query.category ?? 'all',
+      query.tag ?? '',
+      query.search ?? '',
+      query.hasDocument ? 'doc' : '',
+      query.hasWorkflow ? 'wf' : '',
+    ],
     queryFn: async () => parseEnvelope<LibraryList>(await fetch(`/api/library?${params}`)),
     staleTime: 60_000,
   });
 }
 
-export function useOrgTemplates() {
+export function useOrgTemplates(query: LibraryListQuery = {}) {
+  const params = toLibraryParams(query);
   return useQuery({
-    queryKey: ['library', 'org'],
-    queryFn: async () => parseEnvelope<LibraryList>(await fetch('/api/library/org?pageSize=100')),
+    queryKey: [
+      'library',
+      'org',
+      query.category ?? 'all',
+      query.tag ?? '',
+      query.search ?? '',
+      query.hasDocument ? 'doc' : '',
+      query.hasWorkflow ? 'wf' : '',
+    ],
+    queryFn: async () => parseEnvelope<LibraryList>(await fetch(`/api/library/org?${params}`)),
     staleTime: 30_000,
   });
 }

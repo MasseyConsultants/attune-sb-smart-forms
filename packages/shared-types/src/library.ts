@@ -31,6 +31,87 @@ export const LIBRARY_CATEGORY_LABELS: Record<LibraryTemplateCategory, string> = 
   legal: 'Legal & Consent',
 };
 
+/**
+ * Industry / vertical facets for gallery browse (SB-029). Kept separate from
+ * LIBRARY_CATEGORIES so we do not sprawl the primary taxonomy — categories
+ * answer "what kind of form?", tags answer "who is this for?".
+ */
+export const LIBRARY_INDUSTRY_TAGS = [
+  'construction',
+  'electrical',
+  'plumbing',
+  'hvac',
+  'landscaping',
+  'painting',
+  'pest-control',
+  'cleaning',
+  'handyman',
+  'auto',
+  'beauty-wellness',
+  'fitness',
+  'tattoo',
+  'healthcare',
+  'dental',
+  'veterinary',
+  'counseling',
+  'creative',
+  'music',
+  'photography',
+  'events',
+  'professional-services',
+  'it-msp',
+  'accounting',
+  'coaching',
+  'legal-services',
+  'real-estate',
+  'food-hospitality',
+  'retail',
+  'education',
+  'nonprofit',
+  'sales',
+  'hr-ops',
+  'general',
+] as const;
+
+export type LibraryIndustryTag = (typeof LIBRARY_INDUSTRY_TAGS)[number];
+
+export const LIBRARY_INDUSTRY_TAG_LABELS: Record<LibraryIndustryTag, string> = {
+  construction: 'Construction & Trades',
+  electrical: 'Electrical',
+  plumbing: 'Plumbing',
+  hvac: 'HVAC',
+  landscaping: 'Landscaping',
+  painting: 'Painting',
+  'pest-control': 'Pest Control',
+  cleaning: 'Cleaning',
+  handyman: 'Handyman',
+  auto: 'Auto & Fleet',
+  'beauty-wellness': 'Beauty & Wellness',
+  fitness: 'Fitness & Training',
+  tattoo: 'Tattoo & Body Art',
+  healthcare: 'Healthcare',
+  dental: 'Dental',
+  veterinary: 'Veterinary',
+  counseling: 'Counseling & Therapy',
+  creative: 'Creative & Entertainment',
+  music: 'Music & Performance',
+  photography: 'Photography & Video',
+  events: 'Events & Venues',
+  'professional-services': 'Professional Services',
+  'it-msp': 'IT & MSP',
+  accounting: 'Accounting & Tax',
+  coaching: 'Coaching & Consulting',
+  'legal-services': 'Legal Services',
+  'real-estate': 'Real Estate & Property',
+  'food-hospitality': 'Food & Hospitality',
+  retail: 'Retail',
+  education: 'Education & Childcare',
+  nonprofit: 'Nonprofit',
+  sales: 'Sales & Lead Gen',
+  'hr-ops': 'HR & Operations',
+  general: 'General Business',
+};
+
 export enum LibraryTemplateScope {
   /** Curated by the platform; visible to everyone including logged-out visitors. */
   PUBLIC = 'PUBLIC',
@@ -78,6 +159,8 @@ export interface LibraryTemplateSummary {
   name: string;
   description: string;
   category: LibraryTemplateCategory;
+  /** Industry / vertical facets for browse filters (0–4 typical). */
+  tags: LibraryIndustryTag[];
   scope: LibraryTemplateScope;
   fieldCount: number;
   pageCount: number;

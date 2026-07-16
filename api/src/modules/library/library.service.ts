@@ -11,7 +11,9 @@ import {
   CloneTemplateResponse,
   FormSchema,
   LIBRARY_CATEGORIES,
+  LIBRARY_INDUSTRY_TAGS,
   LibraryDocumentRef,
+  LibraryIndustryTag,
   LibraryTemplateDetail,
   LibraryTemplateSummary,
   LibraryWorkflowGraph,
@@ -60,6 +62,13 @@ function pageCountOf(schema: FormSchema): number {
   return pages.length > 0 ? Math.max(...pages) : 1;
 }
 
+const INDUSTRY_TAG_SET = new Set<string>(LIBRARY_INDUSTRY_TAGS);
+
+function toIndustryTags(raw: string[] | null | undefined): LibraryIndustryTag[] {
+  if (!raw?.length) return [];
+  return raw.filter((t): t is LibraryIndustryTag => INDUSTRY_TAG_SET.has(t));
+}
+
 function toSummary(row: LibraryTemplate): LibraryTemplateSummary {
   const schema = row.schema as unknown as FormSchema;
   return {
@@ -68,6 +77,7 @@ function toSummary(row: LibraryTemplate): LibraryTemplateSummary {
     name: row.name,
     description: row.description,
     category: row.category as LibraryTemplateSummary['category'],
+    tags: toIndustryTags(row.tags),
     scope: row.scope as unknown as LibraryTemplateSummary['scope'],
     fieldCount: (schema.fields ?? []).filter((f) => f.type !== 'pagebreak').length,
     pageCount: pageCountOf(schema),

@@ -661,6 +661,8 @@ model LibraryTemplate {
   name        String
   description String
   category    String
+  // Industry / vertical facets (SB-029) — Postgres text[] for has/hasSome filters.
+  tags        String[]             @default([])
   scope       LibraryTemplateScope @default(PUBLIC)
   // form-engine FormSchema contract
   schema      Json

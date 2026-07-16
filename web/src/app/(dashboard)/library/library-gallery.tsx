@@ -1,7 +1,6 @@
 // Author: Robert Massey | Created: 2026-07-13 | Module: Web / Library
-// Purpose: In-app gallery — curated templates + the org's own, category
-// filter, one-click clone into the builder, and "Save as template"
-// (publishOrgTemplates gate renders the upgrade prompt on 402).
+// Purpose: In-app gallery — curated templates + the org's own, with search,
+// industry/category facets, one-click clone, and "Save as template".
 
 'use client';
 
@@ -15,7 +14,6 @@ import {
   FileText,
   Layers,
   Loader2,
-  Search,
   Trash2,
   Upload,
   Workflow,
@@ -23,8 +21,14 @@ import {
 import { useRouter } from 'next/navigation';
 
 import { UpgradeCta } from '@/components/billing/upgrade-cta';
+import {
+  LibraryBrowseControls,
+  TemplateTagChips,
+  type LibraryBrowseFilters,
+} from '@/components/library/library-browse-controls';
 import { Button } from '@/components/ui/button';
 import { LimitExceededError, useFormsList } from '@/hooks/use-forms';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import {
   useCloneTemplate,
   useDeleteOrgTemplate,
@@ -32,19 +36,34 @@ import {
   useOrgTemplates,
   usePublishOrgTemplate,
 } from '@/hooks/use-library';
-import { cn } from '@/lib/utils';
+
+const EMPTY_FILTERS: LibraryBrowseFilters = {
+  category: '',
+  tag: '',
+  search: '',
+  hasDocument: false,
+  hasWorkflow: false,
+};
 
 export function LibraryGallery(): React.ReactElement {
   const router = useRouter();
-  const [category, setCategory] = useState<string>('');
-  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<LibraryBrowseFilters>(EMPTY_FILTERS);
+  const debouncedSearch = useDebouncedValue(filters.search, 250);
   const [cloningId, setCloningId] = useState<string | null>(null);
   const [cloneError, setCloneError] = useState<string | null>(null);
   const [showPublish, setShowPublish] = useState(false);
   const [publishLimit, setPublishLimit] = useState<LimitExceededError | null>(null);
 
-  const gallery = useGalleryTemplates(category || undefined, search || undefined);
-  const orgTemplates = useOrgTemplates();
+  const listQuery = {
+    category: filters.category || undefined,
+    tag: filters.tag || undefined,
+    search: debouncedSearch.trim() || undefined,
+    hasDocument: filters.hasDocument || undefined,
+    hasWorkflow: filters.hasWorkflow || undefined,
+  };
+
+  const gallery = useGalleryTemplates(listQuery);
+  const orgTemplates = useOrgTemplates(listQuery);
   const cloneTemplate = useCloneTemplate();
 
   const handleClone = (template: LibraryTemplateSummary): void => {
@@ -60,6 +79,8 @@ export function LibraryGallery(): React.ReactElement {
   };
 
   const orgRows = orgTemplates.data?.templates ?? [];
+  const curated = gallery.data?.templates ?? [];
+  const curatedTotal = gallery.data?.total ?? curated.length;
 
   return (
     <div className="space-y-6">
@@ -71,27 +92,20 @@ export function LibraryGallery(): React.ReactElement {
         />
       )}
 
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <CategoryPill label="All" active={category === ''} onClick={() => setCategory('')} />
-        {LIBRARY_CATEGORIES.map((cat) => (
-          <CategoryPill
-            key={cat}
-            label={LIBRARY_CATEGORY_LABELS[cat]}
-            active={category === cat}
-            onClick={() => setCategory(cat)}
-          />
-        ))}
-        <div className="relative ml-auto">
-          <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search templates…"
-            className="rounded-md border bg-background py-1.5 pl-8 pr-3 text-sm"
-          />
-        </div>
-        <Button size="sm" variant="outline" onClick={() => setShowPublish(true)}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <LibraryBrowseControls
+          className="flex-1"
+          filters={filters}
+          onChange={setFilters}
+          resultCount={gallery.isLoading ? undefined : curated.length}
+          totalCount={gallery.isLoading ? undefined : curatedTotal}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowPublish(true)}
+          className="shrink-0"
+        >
           <Upload className="mr-1.5 h-4 w-4" />
           Save a form as template
         </Button>
@@ -99,7 +113,6 @@ export function LibraryGallery(): React.ReactElement {
 
       {cloneError && <p className="text-xs text-red-500">{cloneError}</p>}
 
-      {/* Org templates (when any exist) */}
       {orgRows.length > 0 && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -120,7 +133,6 @@ export function LibraryGallery(): React.ReactElement {
         </section>
       )}
 
-      {/* Curated gallery */}
       <section className="space-y-3">
         {orgRows.length > 0 && (
           <h2 className="text-sm font-semibold text-foreground">Curated templates</h2>
@@ -131,7 +143,7 @@ export function LibraryGallery(): React.ReactElement {
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {(gallery.data?.templates ?? []).map((template) => (
+            {curated.map((template) => (
               <TemplateCard
                 key={template.id}
                 template={template}
@@ -141,7 +153,7 @@ export function LibraryGallery(): React.ReactElement {
             ))}
           </div>
         )}
-        {!gallery.isLoading && (gallery.data?.templates ?? []).length === 0 && (
+        {!gallery.isLoading && curated.length === 0 && (
           <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
             No templates match that filter.
           </div>
@@ -161,31 +173,6 @@ export function LibraryGallery(): React.ReactElement {
   );
 }
 
-function CategoryPill({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
-        active
-          ? 'border-transparent bg-[var(--brand-primary,#F97316)] text-white'
-          : 'bg-background text-muted-foreground hover:bg-muted',
-      )}
-    >
-      {label}
-    </button>
-  );
-}
-
 function TemplateCard({
   template,
   cloning,
@@ -201,16 +188,12 @@ function TemplateCard({
 
   return (
     <div className="flex flex-col rounded-lg border bg-background p-4 transition-shadow hover:shadow-sm">
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">{template.name}</h3>
-        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-          {LIBRARY_CATEGORY_LABELS[template.category]}
-        </span>
-      </div>
+      <TemplateTagChips tags={template.tags ?? []} category={template.category} />
+      <h3 className="mb-2 text-sm font-semibold text-foreground">{template.name}</h3>
       <p className="mb-3 line-clamp-3 flex-1 text-xs text-muted-foreground">
         {template.description}
       </p>
-      <div className="mb-3 flex items-center gap-3 text-[11px] text-muted-foreground">
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1">
           <FileText className="h-3 w-3" />
           {template.fieldCount} fields

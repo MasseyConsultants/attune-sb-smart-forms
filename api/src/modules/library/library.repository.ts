@@ -3,6 +3,11 @@
 // organizationId (curated); ORG rows are tenant-scoped and every org-facing
 // query filters by organizationId.
 
+import {
+  LIBRARY_INDUSTRY_TAG_LABELS,
+  LIBRARY_INDUSTRY_TAGS,
+  type LibraryIndustryTag,
+} from '@attune-sb/shared-types';
 import { Injectable } from '@nestjs/common';
 import { LibraryTemplate, LibraryTemplateScope, Prisma } from '@prisma/client';
 
@@ -25,15 +30,7 @@ export class LibraryRepository {
       {
         scope: LibraryTemplateScope.PUBLIC,
         deletedAt: null,
-        ...(query.category ? { category: query.category } : {}),
-        ...(query.search
-          ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { description: { contains: query.search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
+        ...this.filterClauses(query, { searchDescription: true }),
       },
       query,
     );
@@ -49,8 +46,7 @@ export class LibraryRepository {
         scope: LibraryTemplateScope.ORG,
         organizationId,
         deletedAt: null,
-        ...(query.category ? { category: query.category } : {}),
-        ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+        ...this.filterClauses(query, { searchDescription: false }),
       },
       query,
     );
@@ -97,6 +93,71 @@ export class LibraryRepository {
     });
   }
 
+  private filterClauses(
+    query: ListLibraryQueryDto,
+    opts: { readonly searchDescription: boolean },
+  ): Prisma.LibraryTemplateWhereInput {
+    const where: Prisma.LibraryTemplateWhereInput = {
+      ...(query.category ? { category: query.category } : {}),
+      ...(query.tag ? { tags: { has: query.tag } } : {}),
+      ...this.documentFilter(query.hasDocument),
+      ...this.workflowFilter(query.hasWorkflow),
+      ...this.searchFilter(query.search, opts.searchDescription),
+    };
+    return where;
+  }
+
+  private documentFilter(hasDocument?: boolean): Prisma.LibraryTemplateWhereInput {
+    return this.jsonPresenceFilter('document', hasDocument);
+  }
+
+  private workflowFilter(hasWorkflow?: boolean): Prisma.LibraryTemplateWhereInput {
+    return this.jsonPresenceFilter('workflow', hasWorkflow);
+  }
+
+  /** Seed stores absent JSON as JsonNull; older rows may be SQL NULL. */
+  private jsonPresenceFilter(
+    field: 'document' | 'workflow',
+    present?: boolean,
+  ): Prisma.LibraryTemplateWhereInput {
+    if (present === true) {
+      return {
+        AND: [
+          { NOT: { [field]: { equals: Prisma.DbNull } } },
+          { NOT: { [field]: { equals: Prisma.JsonNull } } },
+        ],
+      };
+    }
+    if (present === false) {
+      return {
+        OR: [{ [field]: { equals: Prisma.DbNull } }, { [field]: { equals: Prisma.JsonNull } }],
+      };
+    }
+    return {};
+  }
+
+  private searchFilter(
+    search: string | undefined,
+    includeDescription: boolean,
+  ): Prisma.LibraryTemplateWhereInput {
+    const term = search?.trim();
+    if (!term) return {};
+
+    const or: Prisma.LibraryTemplateWhereInput[] = [
+      { name: { contains: term, mode: 'insensitive' } },
+    ];
+    if (includeDescription) {
+      or.push({ description: { contains: term, mode: 'insensitive' } });
+    }
+
+    const matchingTags = matchIndustryTags(term);
+    if (matchingTags.length > 0) {
+      or.push({ tags: { hasSome: matchingTags } });
+    }
+
+    return { OR: or };
+  }
+
   private async paginate(
     where: Prisma.LibraryTemplateWhereInput,
     query: ListLibraryQueryDto,
@@ -112,4 +173,15 @@ export class LibraryRepository {
     ]);
     return { templates, total };
   }
+}
+
+/** Match search text against industry tag slugs and labels. */
+export function matchIndustryTags(search: string): LibraryIndustryTag[] {
+  const needle = search.trim().toLowerCase();
+  if (!needle) return [];
+  return LIBRARY_INDUSTRY_TAGS.filter((tag) => {
+    if (tag.includes(needle) || needle.includes(tag)) return true;
+    const label = LIBRARY_INDUSTRY_TAG_LABELS[tag].toLowerCase();
+    return label.includes(needle);
+  });
 }

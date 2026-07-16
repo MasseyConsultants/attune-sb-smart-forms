@@ -336,6 +336,10 @@
   venue, agency/tax, chiro/counseling/telehealth, realty, food truck/retail,
   after-school/volunteer, HR exit/near-miss. Seed: `library-seed-wave2.ts`.
   Specs ≥110 templates / ≥40 doc workflows; 632 library-module tests; DB 123.
+- Library browse (2026-07-16, SB-029): industry tags (`tags String[]`, 34
+  facets), API filters (`tag`, `search` matches tags, `hasDocument`,
+  `hasWorkflow`), public `/gallery` + in-app `/library` share search/industry/
+  category/capability controls with URL-synced public filters.
 
 ## Sprint 10 Task Status
 

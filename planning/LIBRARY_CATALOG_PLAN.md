@@ -125,8 +125,8 @@ shared-types + gallery UI):
 | `sales`           | Sales & Lead Gen         | Contact / lead magnets currently scattered                            |
 
 **Decision for this plan:** map every new template into the **existing 8**
-categories first. Tag verticals in `description` + future `tags` JSON (SB-029)
-without breaking gallery filters.
+categories first. Industry verticals use `tags String[]` (SB-029 ✅) — 34
+canonical facets in `@attune-sb/shared-types` — without breaking category filters.
 
 ---
 

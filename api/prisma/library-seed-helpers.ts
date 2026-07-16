@@ -6,6 +6,7 @@ import type {
   FieldType,
   FormSchema,
   LibraryDocumentRef,
+  LibraryIndustryTag,
   LibraryTemplateCategory,
   LibraryWorkflowGraph,
   WorkflowEdge,
@@ -17,6 +18,11 @@ export interface LibrarySeedTemplate {
   readonly name: string;
   readonly description: string;
   readonly category: LibraryTemplateCategory;
+  /**
+   * Optional explicit industry tags. When omitted, seed resolves tags from
+   * slug/name/description via library-seed-tags.ts.
+   */
+  readonly tags?: readonly LibraryIndustryTag[];
   readonly schema: FormSchema;
   readonly workflow?: LibraryWorkflowGraph;
   /** Bundled pre-mapped PDF blueprint, materialized on clone. */

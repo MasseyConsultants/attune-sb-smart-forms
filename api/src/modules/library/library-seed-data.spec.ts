@@ -4,9 +4,10 @@
 // workflow graph that passes graph validation. A bad seed row would ship a
 // broken "Use this template" button to every new signup.
 
-import { LIBRARY_CATEGORIES } from '@attune-sb/shared-types';
+import { LIBRARY_CATEGORIES, LIBRARY_INDUSTRY_TAGS } from '@attune-sb/shared-types';
 
 import { LIBRARY_SEED_TEMPLATES } from '../../../prisma/library-seed-data';
+import { resolveLibraryTags } from '../../../prisma/library-seed-tags';
 
 import { FormsService } from '@/modules/forms/forms.service';
 import { generateLibraryDocumentBlueprint } from '@/modules/library/document-blueprints';
@@ -42,6 +43,21 @@ describe('curated library seed data', () => {
     for (const category of LIBRARY_CATEGORIES) {
       expect(used).toContain(category);
     }
+  });
+
+  it('resolves at least one industry tag per template (SB-029)', () => {
+    for (const template of LIBRARY_SEED_TEMPLATES) {
+      const tags = resolveLibraryTags(template);
+      expect(tags.length).toBeGreaterThanOrEqual(1);
+      for (const tag of tags) {
+        expect(LIBRARY_INDUSTRY_TAGS).toContain(tag);
+      }
+    }
+  });
+
+  it('covers a broad set of industry tags for gallery facets', () => {
+    const used = new Set(LIBRARY_SEED_TEMPLATES.flatMap((t) => resolveLibraryTags(t)));
+    expect(used.size).toBeGreaterThanOrEqual(20);
   });
 
   describe.each(LIBRARY_SEED_TEMPLATES.map((t) => [t.slug, t] as const))(

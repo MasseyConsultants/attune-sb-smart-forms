@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import type { LibraryTemplateDetail } from '@attune-sb/shared-types';
-import { LIBRARY_CATEGORY_LABELS } from '@attune-sb/shared-types';
+import { LIBRARY_CATEGORY_LABELS, LIBRARY_INDUSTRY_TAG_LABELS } from '@attune-sb/shared-types';
 import { ArrowLeft, CheckCircle2, FileCheck2, Workflow } from 'lucide-react';
 
 import { BRAND } from '@/lib/brand';
@@ -93,10 +93,18 @@ export default async function GalleryTemplatePage({
         </Link>
 
         <div className="rounded-xl border bg-background p-6 sm:p-8">
-          <div className="mb-1 flex items-center gap-2">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
               {LIBRARY_CATEGORY_LABELS[template.category]}
             </span>
+            {(template.tags ?? []).map((tag) => (
+              <span
+                key={tag}
+                className="border-[var(--brand-primary,#F97316)]/25 bg-[var(--brand-primary,#F97316)]/5 rounded-full border px-2 py-0.5 text-[10px] font-medium text-[var(--brand-primary,#F97316)]"
+              >
+                {LIBRARY_INDUSTRY_TAG_LABELS[tag]}
+              </span>
+            ))}
             {template.hasWorkflow && (
               <span className="flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-[var(--brand-primary,#F97316)]">
                 <Workflow className="h-3 w-3" />

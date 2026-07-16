@@ -57,6 +57,7 @@ function makeTemplate(overrides: Record<string, unknown> = {}) {
     name: 'Client Intake',
     description: 'A starter intake form',
     category: 'intake',
+    tags: ['general'],
     scope: LibraryTemplateScope.PUBLIC,
     schema: SCHEMA,
     workflow: null,

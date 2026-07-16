@@ -17,6 +17,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 
 import { LIBRARY_SEED_TEMPLATES } from './library-seed-data';
+import { resolveLibraryTags } from './library-seed-tags';
 
 const prisma = new PrismaClient();
 
@@ -295,6 +296,7 @@ async function seedLibraryTemplates(): Promise<void> {
       name: template.name,
       description: template.description,
       category: template.category,
+      tags: resolveLibraryTags(template),
       scope: LibraryTemplateScope.PUBLIC,
       schema: template.schema as unknown as Prisma.InputJsonValue,
       workflow: template.workflow
