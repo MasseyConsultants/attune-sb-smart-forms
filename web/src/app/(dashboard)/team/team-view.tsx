@@ -26,6 +26,12 @@ import {
 } from '@/hooks/use-team';
 import { cn } from '@/lib/utils';
 
+// Platform-org overrides set limits to Number.MAX_SAFE_INTEGER — rendering
+// that as "9007199254740991 seats" would be noise, so show "unlimited".
+function isEffectivelyUnlimited(limit: number): boolean {
+  return limit >= Number.MAX_SAFE_INTEGER;
+}
+
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Owner',
   ADMIN: 'Admin',
@@ -57,7 +63,9 @@ export function TeamView({ currentUserId }: { currentUserId: string }): React.Re
             <div className="flex items-baseline justify-between text-xs">
               <span className="font-medium">Seats</span>
               <span className="tabular-nums text-muted-foreground">
-                {seats.used} of {seats.limit} used
+                {isEffectivelyUnlimited(seats.limit)
+                  ? `${seats.used} used · unlimited`
+                  : `${seats.used} of ${seats.limit} used`}
                 {inviteRows.length > 0 && ` · ${inviteRows.length} pending`}
               </span>
             </div>
@@ -192,6 +200,7 @@ function MemberRow({
 function InviteRow({ invite }: { invite: TeamInvite }): React.ReactElement {
   const resend = useResendInvite();
   const revoke = useRevokeInvite();
+  const [status, setStatus] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const expired = new Date(invite.expiresAt) < new Date();
 
   return (
@@ -201,6 +210,13 @@ function InviteRow({ invite }: { invite: TeamInvite }): React.ReactElement {
           {invite.firstName} {invite.lastName}
         </span>
         <p className="text-xs text-muted-foreground">{invite.email}</p>
+        {status && (
+          <p
+            className={cn('mt-1 text-xs', status.kind === 'ok' ? 'text-green-600' : 'text-red-500')}
+          >
+            {status.text}
+          </p>
+        )}
       </td>
       <td className="px-4 py-3 text-xs">{ROLE_LABELS[invite.role] ?? invite.role}</td>
       <td className="px-4 py-3 text-xs text-muted-foreground">
@@ -212,9 +228,24 @@ function InviteRow({ invite }: { invite: TeamInvite }): React.ReactElement {
           variant="ghost"
           aria-label={`Resend invite to ${invite.email}`}
           disabled={resend.isPending}
-          onClick={() => resend.mutate(invite.id)}
+          onClick={() => {
+            setStatus(null);
+            resend.mutate(invite.id, {
+              onSuccess: () =>
+                setStatus({ kind: 'ok', text: `Invitation re-sent to ${invite.email}` }),
+              onError: (err) =>
+                setStatus({
+                  kind: 'error',
+                  text: err instanceof Error ? err.message : 'Resend failed',
+                }),
+            });
+          }}
         >
-          <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+          {resend.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
         </Button>
         <Button
           size="sm"
@@ -223,7 +254,14 @@ function InviteRow({ invite }: { invite: TeamInvite }): React.ReactElement {
           disabled={revoke.isPending}
           onClick={() => {
             if (window.confirm(`Revoke the invitation to ${invite.email}?`)) {
-              revoke.mutate(invite.id);
+              setStatus(null);
+              revoke.mutate(invite.id, {
+                onError: (err) =>
+                  setStatus({
+                    kind: 'error',
+                    text: err instanceof Error ? err.message : 'Revoke failed',
+                  }),
+              });
             }
           }}
         >
