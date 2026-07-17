@@ -2,9 +2,9 @@
 
 'use client';
 
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, XCircle } from 'lucide-react';
 
-import type { OpsOverview } from '@attune-sb/shared-types';
+import type { OpsHealthState, OpsOverview, OpsResourceHealth } from '@attune-sb/shared-types';
 
 import { useOpsOverview } from '@/hooks/use-admin-ops';
 import { cn } from '@/lib/utils';
@@ -46,27 +46,91 @@ function StatCard({
   );
 }
 
-function DependencyPill({
-  name,
-  healthy,
-  latencyMs,
-}: {
-  name: string;
-  healthy: boolean;
-  latencyMs: number | null;
-}): React.ReactElement {
+const STATE_STYLES: Record<
+  OpsHealthState,
+  { border: string; bg: string; text: string; label: string }
+> = {
+  up: {
+    border: 'border-green-200',
+    bg: 'bg-green-50/60',
+    text: 'text-green-700',
+    label: 'Healthy',
+  },
+  degraded: {
+    border: 'border-amber-200',
+    bg: 'bg-amber-50/60',
+    text: 'text-amber-700',
+    label: 'Degraded',
+  },
+  down: {
+    border: 'border-red-200',
+    bg: 'bg-red-50/60',
+    text: 'text-red-700',
+    label: 'Down',
+  },
+};
+
+function HealthIcon({ state }: { state: OpsHealthState }): React.ReactElement {
+  switch (state) {
+    case 'up':
+      return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+    case 'degraded':
+      return <AlertTriangle className="h-4 w-4 text-amber-600" />;
+    case 'down':
+      return <XCircle className="h-4 w-4 text-red-600" />;
+    default: {
+      const exhaustive: never = state;
+      return exhaustive;
+    }
+  }
+}
+
+function ResourceCard({ resource }: { resource: OpsResourceHealth }): React.ReactElement {
+  const style = STATE_STYLES[resource.state];
   return (
-    <div className="flex items-center gap-2 rounded-lg border p-3">
-      {healthy ? (
-        <CheckCircle2 className="h-4 w-4 text-green-600" />
-      ) : (
-        <XCircle className="h-4 w-4 text-red-600" />
-      )}
-      <div>
-        <p className="text-sm font-medium">{name}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {healthy ? `up · ${latencyMs}ms` : 'unreachable'}
+    <div className={cn('rounded-lg border p-3', style.border, style.bg)}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <HealthIcon state={resource.state} />
+          <p className="text-sm font-medium">{resource.label}</p>
+        </div>
+        <span className={cn('text-[10px] font-semibold uppercase tracking-wide', style.text)}>
+          {style.label}
+        </span>
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">{resource.detail ?? '—'}</p>
+      {resource.latencyMs !== null && (
+        <p className="mt-1 font-mono text-[11px] tabular-nums text-muted-foreground">
+          {resource.latencyMs}ms
         </p>
+      )}
+    </div>
+  );
+}
+
+function SystemHealthPanel({ overview }: { overview: OpsOverview }): React.ReactElement {
+  const overall = STATE_STYLES[overview.health.overall];
+  return (
+    <div className={cn('space-y-3 rounded-lg border p-4', overall.border, overall.bg)}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <HealthIcon state={overview.health.overall} />
+          <div>
+            <p className="text-sm font-medium">System health</p>
+            <p className="text-[11px] text-muted-foreground">
+              Checked {new Date(overview.health.checkedAt).toLocaleTimeString()} · API uptime{' '}
+              {formatUptime(overview.system.uptimeSec)} · v{overview.system.version}
+            </p>
+          </div>
+        </div>
+        <span className={cn('text-xs font-semibold uppercase tracking-wide', overall.text)}>
+          {overall.label}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-7">
+        {overview.health.resources.map((resource) => (
+          <ResourceCard key={resource.key} resource={resource} />
+        ))}
       </div>
     </div>
   );
@@ -131,9 +195,9 @@ export function OpsOverviewTab(): React.ReactElement {
 
   return (
     <div className="space-y-4">
+      <SystemHealthPanel overview={data} />
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <DependencyPill name="PostgreSQL" {...data.dependencies.database} />
-        <DependencyPill name="Redis" {...data.dependencies.redis} />
         <StatCard
           label="API uptime"
           value={formatUptime(data.system.uptimeSec)}
@@ -144,9 +208,6 @@ export function OpsOverviewTab(): React.ReactElement {
           value={formatBytes(data.system.memoryHeapUsedBytes)}
           sub={`RSS ${formatBytes(data.system.memoryRssBytes)}`}
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Requests (60 min)" value={String(data.traffic.requests)} />
         <StatCard
           label="5xx error rate"
@@ -154,6 +215,9 @@ export function OpsOverviewTab(): React.ReactElement {
           sub={`${data.traffic.errors5xx} errors · ${data.traffic.errors4xx} 4xx`}
           alert={data.traffic.errorRate > 0.01}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
         <StatCard
           label="API errors (24h)"
           value={String(data.events24h.apiErrors)}

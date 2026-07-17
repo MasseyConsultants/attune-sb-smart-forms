@@ -31,10 +31,32 @@ const metrics = {
 
 const cache = { ping: jest.fn() };
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const storage = {
+  healthCheck: jest.fn().mockResolvedValue({
+    state: 'up',
+    detail: 'local disk · /tmp/storage',
+    latencyMs: 1,
+  }),
+};
+const email = {
+  healthCheck: jest.fn().mockResolvedValue({
+    state: 'up',
+    detail: 'Resend SMTP',
+    latencyMs: 12,
+  }),
+};
+const config = {
+  get: jest.fn((key: string) => {
+    if (key === 'STRIPE_SECRET_KEY') return 'sk_test';
+    if (key === 'STRIPE_WEBHOOK_SECRET') return 'whsec_test';
+    return undefined;
+  }),
+};
 
 function makeQueue(name: string) {
   return {
     name,
+    client: Promise.resolve({ ping: jest.fn().mockResolvedValue('PONG') }),
     getJobCounts: jest
       .fn()
       .mockResolvedValue({ waiting: 1, active: 0, delayed: 0, failed: 2, completed: 9 }),
@@ -46,6 +68,7 @@ function makeQueue(name: string) {
 
 let lifecycleQueue = makeQueue('lifecycle');
 let workflowQueue = makeQueue('workflow-runs');
+let memorySpy: jest.SpyInstance;
 
 function makeService(): OpsService {
   // Reason: structural mocks stand in for Nest providers in unit tests.
@@ -54,6 +77,9 @@ function makeService(): OpsService {
     metrics as any,
     cache as any,
     logger as any,
+    storage as any,
+    email as any,
+    config as any,
     lifecycleQueue as any,
     workflowQueue as any,
   );
@@ -80,6 +106,30 @@ beforeEach(() => {
   workflowQueue = makeQueue('workflow-runs');
   repository.pingDatabase.mockResolvedValue(3);
   cache.ping.mockResolvedValue(1);
+  storage.healthCheck.mockResolvedValue({
+    state: 'up',
+    detail: 'local disk · /tmp/storage',
+    latencyMs: 1,
+  });
+  email.healthCheck.mockResolvedValue({
+    state: 'up',
+    detail: 'Resend SMTP',
+    latencyMs: 12,
+  });
+  config.get.mockImplementation((key: string) => {
+    if (key === 'STRIPE_SECRET_KEY') return 'sk_test';
+    if (key === 'STRIPE_WEBHOOK_SECRET') return 'whsec_test';
+    return undefined;
+  });
+  // Keep the API memory probe deterministic — Jest heaps can exceed the
+  // Terminus 512 MB warn threshold and falsely mark the process degraded.
+  memorySpy = jest.spyOn(process, 'memoryUsage').mockReturnValue({
+    rss: 120 * 1024 * 1024,
+    heapTotal: 80 * 1024 * 1024,
+    heapUsed: 60 * 1024 * 1024,
+    external: 0,
+    arrayBuffers: 0,
+  });
   repository.countEventsSince.mockResolvedValue(0);
   repository.findRecentFailedRuns.mockResolvedValue([]);
   repository.findBusinessCounts.mockResolvedValue({
@@ -92,14 +142,34 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => {
+  memorySpy.mockRestore();
+});
+
 describe('overview', () => {
   it('composes health, queues, events, and business counts', async () => {
     const service = makeService();
 
     const overview = await service.overview();
 
-    expect(overview.dependencies.database).toEqual({ healthy: true, latencyMs: 3 });
-    expect(overview.dependencies.redis).toEqual({ healthy: true, latencyMs: 1 });
+    expect(overview.health.overall).toBe('up');
+    expect(overview.health.resources.map((r) => r.key)).toEqual([
+      'api',
+      'database',
+      'redis',
+      'queues',
+      'storage',
+      'email',
+      'stripe',
+    ]);
+    expect(overview.health.resources.find((r) => r.key === 'database')).toMatchObject({
+      state: 'up',
+      latencyMs: 3,
+    });
+    expect(overview.health.resources.find((r) => r.key === 'redis')).toMatchObject({
+      state: 'up',
+      latencyMs: 1,
+    });
     expect(overview.queues).toHaveLength(2);
     expect(overview.queues[0]).toMatchObject({ name: 'lifecycle', failed: 2 });
     expect(overview.business.totalOrgs).toBe(5);
@@ -108,12 +178,25 @@ describe('overview', () => {
   it('reports unhealthy dependencies instead of failing', async () => {
     repository.pingDatabase.mockRejectedValue(new Error('connect ECONNREFUSED'));
     cache.ping.mockResolvedValue(null);
+    storage.healthCheck.mockResolvedValue({
+      state: 'down',
+      detail: 'EACCES',
+      latencyMs: 2,
+    });
+    email.healthCheck.mockResolvedValue({
+      state: 'degraded',
+      detail: 'console stub',
+      latencyMs: null,
+    });
+    config.get.mockReturnValue(undefined);
     const service = makeService();
 
     const overview = await service.overview();
 
-    expect(overview.dependencies.database).toEqual({ healthy: false, latencyMs: null });
-    expect(overview.dependencies.redis.healthy).toBe(false);
+    expect(overview.health.overall).toBe('down');
+    expect(overview.health.resources.find((r) => r.key === 'database')?.state).toBe('down');
+    expect(overview.health.resources.find((r) => r.key === 'redis')?.state).toBe('down');
+    expect(overview.health.resources.find((r) => r.key === 'stripe')?.state).toBe('degraded');
   });
 });
 

@@ -77,6 +77,16 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # Mobile packages participate in the turbo lint/typecheck/test graph above.
+      # Explicit filter keeps the mobile track visible in CI logs and fails fast
+      # if workspace filters drift.
+      - name: Mobile lint + typecheck
+        run: |
+          pnpm --filter @attune-sb/mobile-shared lint
+          pnpm --filter @attune-sb/mobile-shared typecheck
+          pnpm --filter attune-sb-field-app lint
+          pnpm --filter attune-sb-field-app typecheck
+
   commitlint:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'

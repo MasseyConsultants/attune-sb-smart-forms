@@ -354,6 +354,7 @@
 | 6   | Docs                          | ✅ Done     | docs/DEPLOYMENT.md (VPS + Azure pathways), ADR-0005                          |
 | 7   | Remaining hardening           | Not started | Backups/restore drill, Stripe live, Resend domain, uptime, semantic-release  |
 | 8   | Platform Ops console (SB-025) | ✅ Done     | 2026-07-16 — fast-tracked P1: ops event ledger, RED metrics, queue inspector |
+| 9   | Workspace dashboard (SB-027)  | ✅ A+B done | 2026-07-16 — home complete; Phase C form analytics deferred to v1.1          |
 
 ## Sprint 10 Verification (2026-07-16 — Platform Ops console, SB-025)
 
@@ -444,6 +445,18 @@
 | 2026-07-12 | `repo-seed/` starter bundle excluded from git (duplicates planning)                                                      | Added to .gitignore                                                                                                                                                |
 | 2026-07-13 | Sidebar logo SVG had raw `0x14` bytes → XML unparseable, broken img                                                      | Bytes replaced with hyphens; logo renders                                                                                                                          |
 | 2026-07-15 | Platform org had no Subscription row → fell back to TRIAL limits (2 seats, all trial caps) — admin couldn't invite staff | Seed now writes unlimited EntitlementOverride rows for the platform org (idempotent, refreshes on boot); team view renders "unlimited" for MAX_SAFE_INTEGER limits |
+
+## Sprint 10 Verification (2026-07-16 — Workspace dashboard A+B, SB-027)
+
+- Replaced the S0 `/dashboard` stub with a role-composed home driven by
+  `GET /api/v1/dashboard/summary?windowDays=7|14|30`
+- Attention rail: pending approvals (Growth+/Business only), failed runs,
+  quarantined OVER_LIMIT (OWNER/ADMIN), soft-limit meters
+- Pulse KPIs + prior-window deltas; SVG sparklines (subs + doc fills);
+  top forms; workflow health (BUILDER+); team snapshot (OWNER/ADMIN);
+  onboarding aha checklist; usage meters
+- VIEWER: no create / billing / usage / team / workflow health
+- 7 API + 3 web specs green; Phase C (form Insights) deferred to v1.1
 
 ## Changelog
 

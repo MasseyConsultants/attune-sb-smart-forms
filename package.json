@@ -26,6 +26,7 @@
     "db:reset": "cd api && pnpm prisma migrate reset",
     "db:studio": "cd api && pnpm prisma studio",
     "db:seed": "cd api && pnpm seed",
+    "mobile:field": "pnpm --filter attune-sb-field-app start",
     "prepare": "husky || true",
     "postinstall": "turbo db:generate"
   },

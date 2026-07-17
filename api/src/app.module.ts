@@ -26,6 +26,7 @@ import { LoggerModule } from './modules/common/logger/logger.module';
 import { HttpLoggerMiddleware } from './modules/common/middleware/http-logger.middleware';
 import { PrismaModule } from './modules/common/prisma/prisma.module';
 import { StorageModule } from './modules/common/storage/storage.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DocumentFillsModule } from './modules/document-fills/document-fills.module';
 import { DocumentTemplatesModule } from './modules/document-templates/document-templates.module';
 import { EntitlementsGuard } from './modules/entitlements/entitlements.guard';
@@ -107,6 +108,7 @@ import { WorkflowsModule } from './modules/workflows/workflows.module';
     EntitlementsModule,
     LifecycleModule,
     BillingModule,
+    DashboardModule,
     FormsModule,
     SubmissionsModule,
     DocumentTemplatesModule,

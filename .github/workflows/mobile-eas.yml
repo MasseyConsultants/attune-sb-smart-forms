@@ -1,0 +1,77 @@
+# Author: Robert Massey | Created: 2026-07-16 | Module: Mobile EAS
+# Manual EAS builds for the SMB field app. Does not run on every push —
+# store binaries are deliberate. Requires EXPO_TOKEN in GitHub secrets.
+#
+# Before first use:
+#   1. Create Expo project → paste projectId into mobile-apps/field-app/app.config.js
+#   2. Add repo secret EXPO_TOKEN (eas whoami / expo.dev access token)
+#   3. Optional: EAS project secret GOOGLE_SERVICES_JSON (file) for push (SB-009)
+#   4. For submit: place Play service-account via EAS secret / local gitignored file
+
+name: Mobile EAS
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        required: true
+        default: preview
+        type: choice
+        options:
+          - development
+          - preview
+          - production
+      platform:
+        description: Target platform
+        required: true
+        default: android
+        type: choice
+        options:
+          - android
+          - ios
+          - all
+      submit:
+        description: Submit to store after production build
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: mobile-eas-${{ github.ref }}-${{ inputs.profile }}-${{ inputs.platform }}
+  cancel-in-progress: false
+
+jobs:
+  eas-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: mobile-apps/field-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Expo / EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: EAS Build
+        run: eas build --non-interactive --profile ${{ inputs.profile }} --platform ${{ inputs.platform }}
+
+      - name: EAS Submit (production Android internal track)
+        if: ${{ inputs.submit && inputs.profile == 'production' && (inputs.platform == 'android' || inputs.platform == 'all') }}
+        run: eas submit --non-interactive --profile production --platform android --latest

@@ -8,8 +8,11 @@ import {
   AdminStripeWebhookEvent,
   Meter as MeterEnum,
   OpsFailedJob,
+  OpsHealthState,
   OpsOverview,
   OpsQueueSnapshot,
+  OpsResourceHealth,
+  OpsSystemHealth,
   OpsUsageHotspot,
   OpsWorkflowFailure,
   PLAN_ENTITLEMENTS,
@@ -18,6 +21,7 @@ import {
 } from '@attune-sb/shared-types';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 
 import { MetricsService } from './metrics.service';
@@ -25,13 +29,30 @@ import { FailedRunRow, OpsRepository, UsageCounterRow } from './ops.repository';
 
 import { AppCacheService } from '@/modules/common/cache/app-cache.service';
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
+import { BlobStorageService } from '@/modules/common/storage/blob-storage.service';
 import { LIFECYCLE_QUEUE } from '@/modules/lifecycle/lifecycle.processor';
+import { EmailService } from '@/modules/notifications/email.service';
 import { WORKFLOW_QUEUE } from '@/modules/workflows/engine/workflow.processor';
 
 const HOTSPOT_THRESHOLD = 0.7;
 const HOTSPOT_LIMIT = 50;
 const FAILED_JOBS_PER_QUEUE = 20;
 const RECENT_FAILURES_LIMIT = 10;
+// Match Terminus readiness thresholds in HealthController.
+const HEAP_WARN_BYTES = 512 * 1024 * 1024;
+const RSS_WARN_BYTES = 1024 * 1024 * 1024;
+
+function worstState(...states: OpsHealthState[]): OpsHealthState {
+  if (states.includes('down')) return 'down';
+  if (states.includes('degraded')) return 'degraded';
+  return 'up';
+}
+
+function formatBytesShort(bytes: number): string {
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(0)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
+}
 
 function toFailure(row: FailedRunRow): OpsWorkflowFailure {
   return {
@@ -53,6 +74,9 @@ export class OpsService {
     private readonly metrics: MetricsService,
     private readonly cache: AppCacheService,
     private readonly logger: SecureLoggerService,
+    private readonly storage: BlobStorageService,
+    private readonly email: EmailService,
+    private readonly config: ConfigService,
     @InjectQueue(LIFECYCLE_QUEUE) private readonly lifecycleQueue: Queue,
     @InjectQueue(WORKFLOW_QUEUE) private readonly workflowQueue: Queue,
   ) {}
@@ -66,16 +90,14 @@ export class OpsService {
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const memory = process.memoryUsage();
 
-    const [database, redisLatency, queues, apiErrors, security, business, failures] =
-      await Promise.all([
-        this.pingDatabase(),
-        this.cache.ping(),
-        this.queueSnapshots(),
-        this.repository.countEventsSince('API_ERROR', dayAgo),
-        this.repository.countEventsSince('SECURITY', dayAgo),
-        this.repository.findBusinessCounts(now),
-        this.repository.findRecentFailedRuns(RECENT_FAILURES_LIMIT),
-      ]);
+    const [health, queues, apiErrors, security, business, failures] = await Promise.all([
+      this.collectHealth(now, memory),
+      this.queueSnapshots(),
+      this.repository.countEventsSince('API_ERROR', dayAgo),
+      this.repository.countEventsSince('SECURITY', dayAgo),
+      this.repository.findBusinessCounts(now),
+      this.repository.findRecentFailedRuns(RECENT_FAILURES_LIMIT),
+    ]);
 
     return {
       generatedAt: now.toISOString(),
@@ -86,15 +108,169 @@ export class OpsService {
         memoryHeapUsedBytes: memory.heapUsed,
         memoryRssBytes: memory.rss,
       },
-      dependencies: {
-        database,
-        redis: { healthy: redisLatency !== null, latencyMs: redisLatency },
-      },
+      health,
       traffic: this.metrics.trafficStats(),
       queues,
       events24h: { apiErrors, security },
       business,
       recentWorkflowFailures: failures.map(toFailure),
+    };
+  }
+
+  private async collectHealth(now: Date, memory: NodeJS.MemoryUsage): Promise<OpsSystemHealth> {
+    const [database, redis, storage, email, queues] = await Promise.all([
+      this.probeDatabase(),
+      this.probeRedis(),
+      this.storage.healthCheck(),
+      this.email.healthCheck(),
+      this.probeQueues(),
+    ]);
+
+    const api = this.probeApi(memory);
+    const stripe = this.probeStripe();
+
+    const resources: OpsResourceHealth[] = [
+      {
+        key: 'api',
+        label: 'API',
+        state: api.state,
+        latencyMs: null,
+        detail: api.detail,
+      },
+      {
+        key: 'database',
+        label: 'PostgreSQL',
+        state: database.state,
+        latencyMs: database.latencyMs,
+        detail: database.detail,
+      },
+      {
+        key: 'redis',
+        label: 'Redis',
+        state: redis.state,
+        latencyMs: redis.latencyMs,
+        detail: redis.detail,
+      },
+      {
+        key: 'queues',
+        label: 'Job queues',
+        state: queues.state,
+        latencyMs: queues.latencyMs,
+        detail: queues.detail,
+      },
+      {
+        key: 'storage',
+        label: 'Blob storage',
+        state: storage.state,
+        latencyMs: storage.latencyMs,
+        detail: storage.detail,
+      },
+      {
+        key: 'email',
+        label: 'Email',
+        state: email.state,
+        latencyMs: email.latencyMs,
+        detail: email.detail,
+      },
+      {
+        key: 'stripe',
+        label: 'Stripe',
+        state: stripe.state,
+        latencyMs: null,
+        detail: stripe.detail,
+      },
+    ];
+
+    return {
+      overall: worstState(...resources.map((r) => r.state)),
+      checkedAt: now.toISOString(),
+      resources,
+    };
+  }
+
+  private probeApi(memory: NodeJS.MemoryUsage): { state: OpsHealthState; detail: string } {
+    const heapOk = memory.heapUsed < HEAP_WARN_BYTES;
+    const rssOk = memory.rss < RSS_WARN_BYTES;
+    if (!heapOk || !rssOk) {
+      return {
+        state: 'degraded',
+        detail: `memory high — heap ${formatBytesShort(memory.heapUsed)} / RSS ${formatBytesShort(memory.rss)}`,
+      };
+    }
+    return {
+      state: 'up',
+      detail: `process up · heap ${formatBytesShort(memory.heapUsed)} · RSS ${formatBytesShort(memory.rss)}`,
+    };
+  }
+
+  private async probeDatabase(): Promise<{
+    state: OpsHealthState;
+    latencyMs: number | null;
+    detail: string;
+  }> {
+    try {
+      const latencyMs = await this.repository.pingDatabase();
+      return { state: 'up', latencyMs, detail: `SELECT 1 · ${latencyMs}ms` };
+    } catch (err) {
+      return {
+        state: 'down',
+        latencyMs: null,
+        detail: err instanceof Error ? err.message : 'database unreachable',
+      };
+    }
+  }
+
+  private async probeRedis(): Promise<{
+    state: OpsHealthState;
+    latencyMs: number | null;
+    detail: string;
+  }> {
+    const latencyMs = await this.cache.ping();
+    if (latencyMs === null) {
+      return { state: 'down', latencyMs: null, detail: 'PING failed / unreachable' };
+    }
+    return { state: 'up', latencyMs, detail: `PING · ${latencyMs}ms` };
+  }
+
+  private async probeQueues(): Promise<{
+    state: OpsHealthState;
+    latencyMs: number | null;
+    detail: string;
+  }> {
+    const start = Date.now();
+    try {
+      // getJobCounts round-trips Redis through the BullMQ client — enough to
+      // prove enqueue paths are live. Depths are shown in the Queues tab.
+      await Promise.all(this.queues.map((q) => q.getJobCounts('waiting', 'failed')));
+      return {
+        state: 'up',
+        latencyMs: Date.now() - start,
+        detail: `${this.queues.length} queues connected`,
+      };
+    } catch (err) {
+      return {
+        state: 'down',
+        latencyMs: Date.now() - start,
+        detail: err instanceof Error ? err.message : 'BullMQ client unreachable',
+      };
+    }
+  }
+
+  private probeStripe(): { state: OpsHealthState; detail: string } {
+    const secret = this.config.get<string>('STRIPE_SECRET_KEY');
+    const webhook = this.config.get<string>('STRIPE_WEBHOOK_SECRET');
+    if (secret && webhook) {
+      return { state: 'up', detail: 'keys configured' };
+    }
+    if (secret || webhook) {
+      return {
+        state: 'degraded',
+        detail: secret ? 'missing STRIPE_WEBHOOK_SECRET' : 'missing STRIPE_SECRET_KEY',
+      };
+    }
+    return {
+      state: 'degraded',
+      detail: 'not configured — trial path only',
     };
   }
 
@@ -195,15 +371,6 @@ export class OpsService {
       ratio: Math.min(used / limit, 9.99),
       periodEnd: row.periodEnd.toISOString(),
     };
-  }
-
-  private async pingDatabase(): Promise<{ healthy: boolean; latencyMs: number | null }> {
-    try {
-      const latencyMs = await this.repository.pingDatabase();
-      return { healthy: true, latencyMs };
-    } catch {
-      return { healthy: false, latencyMs: null };
-    }
   }
 
   private async findJob(

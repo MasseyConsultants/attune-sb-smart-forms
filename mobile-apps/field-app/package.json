@@ -1,0 +1,54 @@
+{
+  "name": "attune-sb-field-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "attune-sb-smart-forms field mobile app (Expo) — phone + tablet",
+  "author": "Robert Massey",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --passWithNoTests",
+    "test:coverage": "jest --coverage --passWithNoTests",
+    "clean": "rimraf .expo dist"
+  },
+  "dependencies": {
+    "@attune-sb/mobile-shared": "workspace:*",
+    "@attune-sb/shared-types": "workspace:*",
+    "@expo/vector-icons": "^14.0.0",
+    "@tanstack/react-query": "^5.20.0",
+    "axios": "^1.6.0",
+    "expo": "~54.0.0",
+    "expo-constants": "~18.0.13",
+    "expo-linking": "~8.0.12",
+    "expo-router": "~6.0.24",
+    "expo-secure-store": "~15.0.8",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@attune-sb/eslint-config": "workspace:*",
+    "@types/jest": "^29.5.0",
+    "@types/react": "~19.1.10",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "jest-expo": "~54.0.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.4.0"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "testMatch": [
+      "**/*.test.ts",
+      "**/*.test.tsx"
+    ]
+  }
+}

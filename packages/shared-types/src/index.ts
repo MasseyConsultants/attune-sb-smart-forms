@@ -16,3 +16,4 @@ export * from './auth';
 export * from './team';
 export * from './billing';
 export * from './orgs';
+export * from './dashboard';

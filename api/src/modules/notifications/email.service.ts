@@ -90,6 +90,45 @@ export class EmailService {
     return this.transport;
   }
 
+  /**
+   * Ops console probe. Stub mode is degraded (mail still "works" via console
+   * log) rather than down — local/dev without a relay is intentional.
+   */
+  async healthCheck(): Promise<{
+    state: 'up' | 'degraded' | 'down';
+    detail: string;
+    latencyMs: number | null;
+  }> {
+    if (this.transport === 'stub' || !this.transporter) {
+      return {
+        state: 'degraded',
+        detail: 'console stub — no RESEND_API_KEY or SMTP_HOST',
+        latencyMs: null,
+      };
+    }
+
+    const start = Date.now();
+    try {
+      await Promise.race([
+        this.transporter.verify(),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('SMTP verify timeout')), 5_000);
+        }),
+      ]);
+      return {
+        state: 'up',
+        detail: this.transport === 'resend' ? 'Resend SMTP' : 'SMTP relay',
+        latencyMs: Date.now() - start,
+      };
+    } catch (err) {
+      return {
+        state: 'down',
+        detail: err instanceof Error ? err.message : 'SMTP verify failed',
+        latencyMs: Date.now() - start,
+      };
+    }
+  }
+
   async send(payload: EmailPayload): Promise<void> {
     if (!this.transporter) {
       this.logStub(payload);

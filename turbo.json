@@ -6,7 +6,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "env": ["DATABASE_URL", "NEXT_PUBLIC_API_URL"]
+      "env": ["DATABASE_URL", "NEXT_PUBLIC_API_URL", "EXPO_PUBLIC_API_URL", "EXPO_PUBLIC_ENV"]
     },
     "typecheck": {
       "dependsOn": ["^build"],

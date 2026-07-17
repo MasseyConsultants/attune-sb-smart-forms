@@ -1,0 +1,18 @@
+node_modules/
+.expo/
+dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+google-services.json
+google-service-account.json
+GoogleService-Info.plist

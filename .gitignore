@@ -8,6 +8,16 @@ dist/
 out/
 coverage/
 .turbo/
+.expo/
+
+# Mobile secrets / native credentials (never commit)
+mobile-apps/**/google-services.json
+mobile-apps/**/google-service-account.json
+mobile-apps/**/GoogleService-Info.plist
+mobile-apps/**/*.jks
+mobile-apps/**/*.p8
+mobile-apps/**/*.p12
+mobile-apps/**/*.mobileprovision
 
 # Environment — never commit secrets
 .env

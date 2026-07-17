@@ -37,9 +37,23 @@ export interface AdminOpsEvent {
   createdAt: string;
 }
 
-export interface OpsDependencyStatus {
-  healthy: boolean;
+/** Resource probe state for the Platform Ops health panel. */
+export type OpsHealthState = 'up' | 'degraded' | 'down';
+
+export interface OpsResourceHealth {
+  /** Machine key: api | database | redis | storage | email | stripe | queues */
+  key: string;
+  label: string;
+  state: OpsHealthState;
   latencyMs: number | null;
+  /** Short human detail (e.g. "up · 3ms", "console stub", heap warning). */
+  detail: string | null;
+}
+
+export interface OpsSystemHealth {
+  overall: OpsHealthState;
+  checkedAt: string;
+  resources: OpsResourceHealth[];
 }
 
 export interface OpsTrafficMinute {
@@ -93,10 +107,8 @@ export interface OpsOverview {
     memoryHeapUsedBytes: number;
     memoryRssBytes: number;
   };
-  dependencies: {
-    database: OpsDependencyStatus;
-    redis: OpsDependencyStatus;
-  };
+  /** Live probes for every platform dependency admins need at a glance. */
+  health: OpsSystemHealth;
   traffic: OpsTrafficStats;
   queues: OpsQueueSnapshot[];
   events24h: {

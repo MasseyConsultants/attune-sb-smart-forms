@@ -35,6 +35,35 @@ export class BlobStorageService {
     return true;
   }
 
+  /** Root directory used by the local-disk driver (ops console display). */
+  get rootDir(): string {
+    return this.baseDir;
+  }
+
+  /** Ops console probe — ensures the storage root is creatable/writable. */
+  async healthCheck(): Promise<{
+    state: 'up' | 'degraded' | 'down';
+    detail: string;
+    latencyMs: number | null;
+  }> {
+    const start = Date.now();
+    try {
+      await fs.mkdir(this.baseDir, { recursive: true });
+      await fs.access(this.baseDir);
+      return {
+        state: 'up',
+        detail: `local disk · ${this.baseDir}`,
+        latencyMs: Date.now() - start,
+      };
+    } catch (err) {
+      return {
+        state: 'down',
+        detail: err instanceof Error ? err.message : 'storage unreachable',
+        latencyMs: Date.now() - start,
+      };
+    }
+  }
+
   async upload(key: string, body: Buffer, _mimeType: string): Promise<void> {
     const filePath = this.resolveSafe(key);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
