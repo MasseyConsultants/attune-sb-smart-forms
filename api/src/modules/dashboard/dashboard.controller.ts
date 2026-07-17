@@ -1,8 +1,8 @@
 // Author: Robert Massey | Created: 2026-07-16 | Module: Dashboard
 
+import type { DashboardSummary } from '@attune-sb/shared-types';
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { DashboardSummary } from '@attune-sb/shared-types';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 

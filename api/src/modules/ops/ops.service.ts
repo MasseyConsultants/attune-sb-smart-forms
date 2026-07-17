@@ -43,14 +43,22 @@ const HEAP_WARN_BYTES = 512 * 1024 * 1024;
 const RSS_WARN_BYTES = 1024 * 1024 * 1024;
 
 function worstState(...states: OpsHealthState[]): OpsHealthState {
-  if (states.includes('down')) return 'down';
-  if (states.includes('degraded')) return 'degraded';
+  if (states.includes('down')) {
+    return 'down';
+  }
+  if (states.includes('degraded')) {
+    return 'degraded';
+  }
   return 'up';
 }
 
 function formatBytesShort(bytes: number): string {
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(0)} MB`;
+  if (bytes >= 1024 ** 3) {
+    return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  }
+  if (bytes >= 1024 ** 2) {
+    return `${(bytes / 1024 ** 2).toFixed(0)} MB`;
+  }
   return `${(bytes / 1024).toFixed(0)} KB`;
 }
 

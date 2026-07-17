@@ -47,8 +47,12 @@ const email = {
 };
 const config = {
   get: jest.fn((key: string) => {
-    if (key === 'STRIPE_SECRET_KEY') return 'sk_test';
-    if (key === 'STRIPE_WEBHOOK_SECRET') return 'whsec_test';
+    if (key === 'STRIPE_SECRET_KEY') {
+      return 'sk_test';
+    }
+    if (key === 'STRIPE_WEBHOOK_SECRET') {
+      return 'whsec_test';
+    }
     return undefined;
   }),
 };
@@ -117,8 +121,12 @@ beforeEach(() => {
     latencyMs: 12,
   });
   config.get.mockImplementation((key: string) => {
-    if (key === 'STRIPE_SECRET_KEY') return 'sk_test';
-    if (key === 'STRIPE_WEBHOOK_SECRET') return 'whsec_test';
+    if (key === 'STRIPE_SECRET_KEY') {
+      return 'sk_test';
+    }
+    if (key === 'STRIPE_WEBHOOK_SECRET') {
+      return 'whsec_test';
+    }
     return undefined;
   });
   // Keep the API memory probe deterministic — Jest heaps can exceed the

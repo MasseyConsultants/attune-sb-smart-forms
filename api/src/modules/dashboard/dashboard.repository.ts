@@ -367,7 +367,9 @@ export class DashboardRepository {
       },
       _count: { _all: true },
     });
-    if (groups.length === 0) return [];
+    if (groups.length === 0) {
+      return [];
+    }
 
     groups.sort((a, b) => b._count._all - a._count._all);
     const top = groups.slice(0, take);
@@ -385,7 +387,9 @@ export class DashboardRepository {
     const result: TopFormRow[] = [];
     for (const g of top) {
       const form = byId.get(g.formId);
-      if (!form) continue;
+      if (!form) {
+        continue;
+      }
       result.push({
         formId: form.id,
         name: form.name,
