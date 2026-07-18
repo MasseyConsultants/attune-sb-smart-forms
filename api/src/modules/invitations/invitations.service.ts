@@ -82,7 +82,7 @@ export class InvitationsService {
       throw new BadRequestException('Cannot invite a user with this role');
     }
 
-    return this.createInviteInternal({
+    return await this.createInviteInternal({
       invitedBy,
       email,
       firstName,
@@ -107,7 +107,7 @@ export class InvitationsService {
       throw new ForbiddenException('Only platform admins can invite platform staff');
     }
 
-    return this.createInviteInternal({
+    return await this.createInviteInternal({
       invitedBy,
       email,
       firstName,
