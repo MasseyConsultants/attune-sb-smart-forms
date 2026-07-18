@@ -1,8 +1,10 @@
 // Author: Robert Massey | Created: 2026-07-13 | Module: Admin / Tests
 // Support-surface invariants: 404 on unknown orgs, override mutations bust the
 // entitlements cache, and every mutation logs the acting admin.
+// SB-030: platform staff grant/revoke guards (no self-revoke, no last-admin).
 
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Role } from '@prisma/client';
 
 import { AdminService } from './admin.service';
 
@@ -15,10 +17,23 @@ const repository = {
   createOverride: jest.fn(),
   deleteOverride: jest.fn(),
   setLegalHold: jest.fn(),
+  listPlatformOrgMembers: jest.fn(),
+  listPendingPlatformInvites: jest.fn(),
+  countPlatformAdmins: jest.fn(),
+  findUserInOrg: jest.fn(),
+  updateUserRole: jest.fn(),
 };
 
 const entitlements = { getUsageSummary: jest.fn(), invalidate: jest.fn() };
+const invitations = { createPlatformAdminInvite: jest.fn() };
 const logger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+
+const CALLER = {
+  userId: 'admin-1',
+  email: 'admin@attuneitus.com',
+  role: Role.PLATFORM_ADMIN,
+  organizationId: 'platform-org',
+};
 
 function makeOrgRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -38,7 +53,12 @@ function makeOrgRow(overrides: Record<string, unknown> = {}) {
 
 function makeService(): AdminService {
   // Reason: structural mocks stand in for Nest providers in unit tests.
-  return new AdminService(repository as any, entitlements as any, logger as any);
+  return new AdminService(
+    repository as any,
+    entitlements as any,
+    invitations as any,
+    logger as any,
+  );
 }
 
 beforeEach(() => {
@@ -167,5 +187,77 @@ describe('overrides', () => {
     await service.deleteOverride('org-1', 'ovr-1', 'admin-1');
 
     expect(entitlements.invalidate).toHaveBeenCalledWith('org-1');
+  });
+});
+
+describe('platform staff (SB-030)', () => {
+  it('invitePlatformAdmin delegates to invitations and logs', async () => {
+    invitations.createPlatformAdminInvite.mockResolvedValue({
+      id: 'inv-1',
+      email: 'ops@attuneitus.com',
+    });
+    const service = makeService();
+
+    const result = await service.invitePlatformAdmin(CALLER, {
+      email: 'ops@attuneitus.com',
+      firstName: 'Ops',
+      lastName: 'Peer',
+    });
+
+    expect(result.email).toBe('ops@attuneitus.com');
+    expect(invitations.createPlatformAdminInvite).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('admin.platform_staff.invited'),
+      'AdminService',
+    );
+  });
+
+  it('grantPlatformAdmin promotes a platform-org member', async () => {
+    repository.findUserInOrg.mockResolvedValue({
+      id: 'user-2',
+      role: Role.ADMIN,
+      organizationId: 'platform-org',
+    });
+    repository.updateUserRole.mockResolvedValue({});
+    const service = makeService();
+
+    await service.grantPlatformAdmin(CALLER, 'user-2');
+
+    expect(repository.updateUserRole).toHaveBeenCalledWith('user-2', Role.PLATFORM_ADMIN);
+  });
+
+  it('revokePlatformAdmin refuses self-revoke', async () => {
+    const service = makeService();
+    await expect(service.revokePlatformAdmin(CALLER, 'admin-1')).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('revokePlatformAdmin refuses removing the last admin', async () => {
+    repository.findUserInOrg.mockResolvedValue({
+      id: 'user-2',
+      role: Role.PLATFORM_ADMIN,
+      organizationId: 'platform-org',
+    });
+    repository.countPlatformAdmins.mockResolvedValue(1);
+    const service = makeService();
+
+    await expect(service.revokePlatformAdmin(CALLER, 'user-2')).rejects.toThrow(ForbiddenException);
+    expect(repository.updateUserRole).not.toHaveBeenCalled();
+  });
+
+  it('revokePlatformAdmin demotes a peer when others remain', async () => {
+    repository.findUserInOrg.mockResolvedValue({
+      id: 'user-2',
+      role: Role.PLATFORM_ADMIN,
+      organizationId: 'platform-org',
+    });
+    repository.countPlatformAdmins.mockResolvedValue(2);
+    repository.updateUserRole.mockResolvedValue({});
+    const service = makeService();
+
+    await service.revokePlatformAdmin(CALLER, 'user-2');
+
+    expect(repository.updateUserRole).toHaveBeenCalledWith('user-2', Role.ADMIN);
   });
 });

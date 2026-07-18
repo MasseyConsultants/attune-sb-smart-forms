@@ -355,6 +355,7 @@
 | 7   | Remaining hardening           | Not started | Backups/restore drill, Stripe live, Resend domain, uptime, semantic-release  |
 | 8   | Platform Ops console (SB-025) | ✅ Done     | 2026-07-16 — fast-tracked P1: ops event ledger, RED metrics, queue inspector |
 | 9   | Workspace dashboard (SB-027)  | ✅ A+B done | 2026-07-16 — home complete; Phase C form analytics deferred to v1.1          |
+| 10  | Platform staff (SB-030)       | ✅ Done     | 2026-07-18 — invite/grant/revoke PLATFORM_ADMIN peers via /admin/staff       |
 
 ## Sprint 10 Verification (2026-07-16 — Platform Ops console, SB-025)
 

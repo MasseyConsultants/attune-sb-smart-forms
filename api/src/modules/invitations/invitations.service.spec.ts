@@ -14,6 +14,7 @@ import { EntitlementExceededException } from '@/modules/entitlements/entitlement
 
 const repository = {
   findActiveUserByEmail: jest.fn(),
+  findActiveUserByEmailGlobal: jest.fn(),
   findPendingInvite: jest.fn(),
   createInvite: jest.fn(),
   findInviteById: jest.fn(),
@@ -79,9 +80,51 @@ function makeService(): InvitationsService {
 beforeEach(() => {
   jest.clearAllMocks();
   repository.findActiveUserByEmail.mockResolvedValue(null);
+  repository.findActiveUserByEmailGlobal.mockResolvedValue(null);
   repository.findPendingInvite.mockResolvedValue(null);
   repository.createInvite.mockResolvedValue(inviteRecord());
   entitlements.assertCountedAvailable.mockResolvedValue(undefined);
+});
+
+describe('createPlatformAdminInvite (SB-030)', () => {
+  const PLATFORM_ADMIN = {
+    userId: 'padmin-1',
+    email: 'admin@attuneitus.com',
+    role: Role.PLATFORM_ADMIN,
+    organizationId: 'platform-org',
+  };
+
+  it('creates a PLATFORM_ADMIN invite for a platform admin caller', async () => {
+    repository.createInvite.mockResolvedValue(
+      inviteRecord({ role: Role.PLATFORM_ADMIN, orgId: 'platform-org' }),
+    );
+    const service = makeService();
+
+    await service.createPlatformAdminInvite(
+      PLATFORM_ADMIN as any,
+      'ops@attuneitus.com',
+      'Ops',
+      'Peer',
+    );
+
+    expect(repository.createInvite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: Role.PLATFORM_ADMIN,
+        orgId: 'platform-org',
+        email: 'ops@attuneitus.com',
+      }),
+    );
+    expect(emailService.send).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: expect.stringContaining('platform staff') }),
+    );
+  });
+
+  it('rejects non-platform-admin callers', async () => {
+    const service = makeService();
+    await expect(
+      service.createPlatformAdminInvite(INVITER as any, 'x@y.com', 'X', 'Y'),
+    ).rejects.toThrow('Only platform admins');
+  });
 });
 
 describe('createInvite seat cap (SB-019)', () => {

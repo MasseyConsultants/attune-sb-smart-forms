@@ -33,6 +33,15 @@ export class InvitationsRepository {
     });
   }
 
+  findActiveUserByEmailGlobal(email: string): Promise<User | null> {
+    return this.prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+        deletedAt: null,
+      },
+    });
+  }
+
   findPendingInvite(email: string, orgId: string): Promise<InviteToken | null> {
     return this.prisma.inviteToken.findFirst({
       where: {

@@ -16,6 +16,7 @@ import {
   LibraryBig,
   ShieldCheck,
   Activity,
+  UserCog,
 } from 'lucide-react';
 import type { OrganizationProfile, UserProfile } from '@attune-sb/shared-types';
 
@@ -72,6 +73,7 @@ const ADMIN_SECTION: NavSection = {
   items: [
     { label: 'Admin', href: '/admin', icon: <ShieldCheck className="h-4 w-4" /> },
     { label: 'Ops', href: '/admin/ops', icon: <Activity className="h-4 w-4" /> },
+    { label: 'Staff', href: '/admin/staff', icon: <UserCog className="h-4 w-4" /> },
   ],
 };
 

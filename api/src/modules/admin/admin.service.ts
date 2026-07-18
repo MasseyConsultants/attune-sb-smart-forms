@@ -9,14 +9,23 @@ import {
   AdminOrgDetail,
   AdminOrgSummary,
   CreateOverrideRequest,
+  InvitePlatformAdminRequest,
+  PlatformStaffSummary,
 } from '@attune-sb/shared-types';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { EntitlementOverride, Prisma } from '@prisma/client';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { EntitlementOverride, Prisma, Role } from '@prisma/client';
 
 import { AdminOrgRow, AdminRepository } from './admin.repository';
 
+import type { AuthenticatedUser } from '@/modules/auth/strategies/jwt.strategy';
 import { SecureLoggerService } from '@/modules/common/logger/secure-logger.service';
 import { EntitlementsService } from '@/modules/entitlements/entitlements.service';
+import { InvitationsService } from '@/modules/invitations/invitations.service';
 
 function toSummary(row: AdminOrgRow): AdminOrgSummary {
   return {
@@ -51,6 +60,7 @@ export class AdminService {
   constructor(
     private readonly repository: AdminRepository,
     private readonly entitlements: EntitlementsService,
+    private readonly invitations: InvitationsService,
     private readonly logger: SecureLoggerService,
   ) {}
 
@@ -144,6 +154,98 @@ export class AdminService {
     await this.entitlements.invalidate(orgId);
     this.logger.warn(
       `admin.override.deleted org=${orgId} override=${overrideId} by=${actorId}`,
+      'AdminService',
+    );
+  }
+
+  // --- Platform staff (SB-030) ---
+
+  async listPlatformStaff(caller: AuthenticatedUser): Promise<PlatformStaffSummary> {
+    const orgId = caller.organizationId;
+    const [members, pendingInvites, platformAdminCount] = await Promise.all([
+      this.repository.listPlatformOrgMembers(orgId),
+      this.repository.listPendingPlatformInvites(orgId),
+      this.repository.countPlatformAdmins(orgId),
+    ]);
+
+    return {
+      members: members.map((m) => ({
+        id: m.id,
+        email: m.email,
+        firstName: m.firstName,
+        lastName: m.lastName,
+        role: m.role,
+        isActive: m.isActive,
+        lastLoginAt: m.lastLoginAt?.toISOString() ?? null,
+        createdAt: m.createdAt.toISOString(),
+      })),
+      pendingInvites: pendingInvites.map((i) => ({
+        id: i.id,
+        email: i.email,
+        firstName: i.firstName,
+        lastName: i.lastName,
+        expiresAt: i.expiresAt.toISOString(),
+        createdAt: i.createdAt.toISOString(),
+      })),
+      platformAdminCount,
+    };
+  }
+
+  async invitePlatformAdmin(
+    caller: AuthenticatedUser,
+    dto: InvitePlatformAdminRequest,
+  ): Promise<{ id: string; email: string }> {
+    const result = await this.invitations.createPlatformAdminInvite(
+      caller,
+      dto.email.trim().toLowerCase(),
+      dto.firstName.trim(),
+      dto.lastName.trim(),
+    );
+    this.logger.warn(
+      `admin.platform_staff.invited email=${result.email} by=${caller.userId}`,
+      'AdminService',
+    );
+    return result;
+  }
+
+  async grantPlatformAdmin(caller: AuthenticatedUser, userId: string): Promise<void> {
+    const target = await this.repository.findUserInOrg(caller.organizationId, userId);
+    if (!target) {
+      throw new NotFoundException('User not found in the platform organization');
+    }
+    if (target.role === Role.PLATFORM_ADMIN) {
+      throw new BadRequestException('User is already a platform admin');
+    }
+
+    await this.repository.updateUserRole(userId, Role.PLATFORM_ADMIN);
+    this.logger.warn(
+      `admin.platform_staff.granted target=${userId} by=${caller.userId}`,
+      'AdminService',
+    );
+  }
+
+  async revokePlatformAdmin(caller: AuthenticatedUser, userId: string): Promise<void> {
+    if (userId === caller.userId) {
+      throw new ForbiddenException('You cannot revoke your own platform admin role');
+    }
+
+    const target = await this.repository.findUserInOrg(caller.organizationId, userId);
+    if (!target) {
+      throw new NotFoundException('User not found in the platform organization');
+    }
+    if (target.role !== Role.PLATFORM_ADMIN) {
+      throw new BadRequestException('User is not a platform admin');
+    }
+
+    const adminCount = await this.repository.countPlatformAdmins(caller.organizationId);
+    if (adminCount <= 1) {
+      throw new ForbiddenException('Cannot revoke the last platform admin');
+    }
+
+    // Demote to ADMIN — still a platform-org member, no customer-console access.
+    await this.repository.updateUserRole(userId, Role.ADMIN);
+    this.logger.warn(
+      `admin.platform_staff.revoked target=${userId} by=${caller.userId}`,
       'AdminService',
     );
   }

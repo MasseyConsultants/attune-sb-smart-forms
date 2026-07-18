@@ -7,9 +7,10 @@ import { AdminRepository } from './admin.repository';
 import { AdminService } from './admin.service';
 
 import { EntitlementsModule } from '@/modules/entitlements/entitlements.module';
+import { InvitationsModule } from '@/modules/invitations/invitations.module';
 
 @Module({
-  imports: [EntitlementsModule],
+  imports: [EntitlementsModule, InvitationsModule],
   controllers: [AdminController],
   providers: [AdminRepository, AdminService],
 })

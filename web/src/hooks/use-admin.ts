@@ -9,6 +9,8 @@ import type {
   AdminOrgDetail,
   AdminOrgSummary,
   CreateOverrideRequest,
+  InvitePlatformAdminRequest,
+  PlatformStaffSummary,
 } from '@attune-sb/shared-types';
 
 interface Envelope<T> {
@@ -98,6 +100,52 @@ export function useDeleteOverride(id: string) {
   return useMutation({
     mutationFn: (overrideId: string) =>
       fetchEnvelope<void>(`/api/admin/orgs/${id}/overrides/${overrideId}`, { method: 'DELETE' }),
+    onSuccess: invalidate,
+  });
+}
+
+export function usePlatformStaff() {
+  return useQuery({
+    queryKey: ['admin', 'platform-staff'],
+    queryFn: () => fetchEnvelope<PlatformStaffSummary>('/api/admin/platform-staff'),
+    staleTime: 10_000,
+  });
+}
+
+function useStaffInvalidate() {
+  const queryClient = useQueryClient();
+  return (): void => {
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'platform-staff'] });
+  };
+}
+
+export function useInvitePlatformAdmin() {
+  const invalidate = useStaffInvalidate();
+  return useMutation({
+    mutationFn: (input: InvitePlatformAdminRequest) =>
+      fetchEnvelope<{ id: string; email: string }>('/api/admin/platform-staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useGrantPlatformAdmin() {
+  const invalidate = useStaffInvalidate();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      fetchEnvelope<void>(`/api/admin/platform-staff/${userId}/grant`, { method: 'POST' }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRevokePlatformAdmin() {
+  const invalidate = useStaffInvalidate();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      fetchEnvelope<void>(`/api/admin/platform-staff/${userId}/revoke`, { method: 'POST' }),
     onSuccess: invalidate,
   });
 }

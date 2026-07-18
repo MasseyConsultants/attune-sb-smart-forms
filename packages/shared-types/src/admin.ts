@@ -59,3 +59,37 @@ export interface CreateOverrideRequest {
   /** ISO date; omit for a permanent override. */
   expiresAt?: string;
 }
+
+/** Attune platform-org staff (PLATFORM_ADMIN peers) — SB-030. */
+export interface PlatformStaffMember {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+export interface PlatformStaffInvite {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface PlatformStaffSummary {
+  members: PlatformStaffMember[];
+  pendingInvites: PlatformStaffInvite[];
+  /** Always ≥ 1 while this endpoint is reachable. */
+  platformAdminCount: number;
+}
+
+export interface InvitePlatformAdminRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+}

@@ -6,9 +6,11 @@
 import { Injectable } from '@nestjs/common';
 import {
   EntitlementOverride,
+  InviteToken,
   Organization,
   OrgLifecycleState,
   Prisma,
+  Role,
   Subscription,
   User,
 } from '@prisma/client';
@@ -136,5 +138,54 @@ export class AdminRepository {
       where: { id: organizationId },
       data: { legalHoldAt: hold ? new Date() : null },
     });
+  }
+
+  // --- Platform staff (SB-030) — scoped to the caller's platform org ---
+
+  listPlatformOrgMembers(organizationId: string): Promise<User[]> {
+    return this.prisma.user.findMany({
+      where: { organizationId, deletedAt: null },
+      orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  countPlatformAdmins(organizationId: string): Promise<number> {
+    return this.prisma.user.count({
+      where: {
+        organizationId,
+        deletedAt: null,
+        isActive: true,
+        role: Role.PLATFORM_ADMIN,
+      },
+    });
+  }
+
+  findUserInOrg(organizationId: string, userId: string): Promise<User | null> {
+    return this.prisma.user.findFirst({
+      where: { id: userId, organizationId, deletedAt: null },
+    });
+  }
+
+  /** Email is globally unique — catch cross-org collisions before invite. */
+  findActiveUserByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' }, deletedAt: null },
+    });
+  }
+
+  listPendingPlatformInvites(organizationId: string): Promise<InviteToken[]> {
+    return this.prisma.inviteToken.findMany({
+      where: {
+        orgId: organizationId,
+        acceptedAt: null,
+        role: Role.PLATFORM_ADMIN,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  updateUserRole(userId: string, role: Role): Promise<User> {
+    return this.prisma.user.update({ where: { id: userId }, data: { role } });
   }
 }

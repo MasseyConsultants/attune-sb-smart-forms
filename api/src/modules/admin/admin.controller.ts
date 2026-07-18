@@ -4,7 +4,12 @@
 // even while a target org is read-only. Restore/purge-request live on the
 // existing /admin/lifecycle controller.
 
-import { AdminEntitlementOverride, AdminOrgDetail, AdminOrgSummary } from '@attune-sb/shared-types';
+import {
+  AdminEntitlementOverride,
+  AdminOrgDetail,
+  AdminOrgSummary,
+  PlatformStaffSummary,
+} from '@attune-sb/shared-types';
 import {
   Body,
   Controller,
@@ -21,6 +26,7 @@ import { Role } from '@prisma/client';
 
 import { AdminService } from './admin.service';
 import { CreateOverrideDto } from './dto/create-override.dto';
+import { InvitePlatformAdminDto } from './dto/invite-platform-admin.dto';
 import { ListOrgsQueryDto } from './dto/list-orgs-query.dto';
 import { SetLegalHoldDto } from './dto/set-legal-hold.dto';
 
@@ -78,5 +84,40 @@ export class AdminController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
     await this.adminService.deleteOverride(id, overrideId, user.userId);
+  }
+
+  @Get('platform-staff')
+  @ApiOperation({ summary: 'List platform-org staff and pending PLATFORM_ADMIN invites' })
+  listPlatformStaff(@CurrentUser() user: AuthenticatedUser): Promise<PlatformStaffSummary> {
+    return this.adminService.listPlatformStaff(user);
+  }
+
+  @Post('platform-staff/invite')
+  @ApiOperation({ summary: 'Invite a peer as PLATFORM_ADMIN into the platform org' })
+  invitePlatformAdmin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: InvitePlatformAdminDto,
+  ): Promise<{ id: string; email: string }> {
+    return this.adminService.invitePlatformAdmin(user, dto);
+  }
+
+  @Post('platform-staff/:userId/grant')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Promote a platform-org member to PLATFORM_ADMIN' })
+  async grantPlatformAdmin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<void> {
+    await this.adminService.grantPlatformAdmin(user, userId);
+  }
+
+  @Post('platform-staff/:userId/revoke')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Demote a PLATFORM_ADMIN to ADMIN (cannot revoke self or last admin)' })
+  async revokePlatformAdmin(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<void> {
+    await this.adminService.revokePlatformAdmin(user, userId);
   }
 }
